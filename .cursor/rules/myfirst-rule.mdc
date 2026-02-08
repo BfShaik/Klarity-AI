@@ -1,0 +1,29 @@
+---
+alwaysApply: true
+---
+
+I am a Principal Cloud Architect. Use professional, clean TypeScript. Prefer Next.js App Router and Shadcn UI. Keep code modular and focus on high-impact performance metrics.
+# Klarity AI: Project Rules & Standards
+
+## Tech Stack
+- Framework: Next.js 15 (App Router)
+- Language: TypeScript (Strict mode)
+- Styling: Tailwind CSS
+- UI Components: Shadcn/UI (Dark Mode, Slate/Zinc aesthetic)
+- Database: Supabase
+
+## Architectural Principles
+- **Modular Components:** Keep UI components small and reusable in `src/components`.
+- **Server-First:** Use React Server Components (RSC) by default unless interactivity is required.
+- **STAR Methodology:** All work log logic must support the STAR (Situation, Task, Action, Result) structure.
+- **Metric-Driven:** Ensure data models always account for OCI-specific metrics like TCV (Total Contract Value) and ARR (Annual Recurring Revenue).
+
+## Coding Preferences
+- Use arrow functions for components.
+- Use Zod for schema validation.
+- Maintain a high-density "Command Center" UI/UX—efficient, minimal whitespace, professional.
+
+## Naming Conventions
+- Files: kebab-case (e.g., `log-entry-form.tsx`).
+- Components: PascalCase (e.g., `LogEntryForm`).
+- Variables: camelCase.
