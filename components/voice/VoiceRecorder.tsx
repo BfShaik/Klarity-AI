@@ -1,0 +1,105 @@
+"use client";
+
+import { useState, useRef, useCallback, useEffect } from "react";
+
+export default function VoiceRecorder({
+  onTranscript,
+}: {
+  onTranscript: (text: string) => void;
+}) {
+  const [recording, setRecording] = useState(false);
+  const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isSupported, setIsSupported] = useState(false);
+  const chunksRef = useRef<Blob[]>([]);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+
+  useEffect(() => {
+    setIsSupported(
+      typeof window !== "undefined" &&
+        typeof navigator !== "undefined" &&
+        !!navigator.mediaDevices?.getUserMedia
+    );
+  }, []);
+
+  const startRecording = useCallback(async () => {
+    if (!isSupported) {
+      setError("Voice recording is not supported in this browser.");
+      return;
+    }
+    setError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream);
+      chunksRef.current = [];
+      mr.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+      mr.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+      };
+      mr.start();
+      mediaRecorderRef.current = mr;
+      setRecording(true);
+    } catch (err) {
+      setError("Microphone access denied or unavailable.");
+    }
+  }, []);
+
+  const stopRecording = useCallback(async () => {
+    const mr = mediaRecorderRef.current;
+    if (!mr || mr.state === "inactive") return;
+    mr.stop();
+    setRecording(false);
+    setProcessing(true);
+    setError(null);
+    try {
+      const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+      const formData = new FormData();
+      formData.append("file", blob, "recording.webm");
+      const res = await fetch("/api/transcribe", { method: "POST", body: formData });
+      const data = await res.json();
+      if (data.transcript) onTranscript(data.transcript);
+      else if (data.error) setError(data.error);
+    } catch {
+      setError("Transcription failed. Paste or type your note instead.");
+    }
+    setProcessing(false);
+  }, [onTranscript]);
+
+  if (!isSupported) {
+    return (
+      <div className="space-y-2">
+        <p className="text-sm font-medium text-gray-700">Voice note</p>
+        <p className="text-sm text-gray-500">Voice recording is not available in this browser.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="text-sm font-medium text-gray-700">Voice note</p>
+      <div className="flex items-center gap-2">
+        {!recording ? (
+          <button
+            type="button"
+            onClick={startRecording}
+            disabled={processing}
+            className="rounded bg-red-600 text-white px-4 py-2 text-sm font-medium hover:bg-red-700 disabled:opacity-50"
+          >
+            {processing ? "Processing…" : "Start recording"}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={stopRecording}
+            className="rounded bg-gray-700 text-white px-4 py-2 text-sm font-medium hover:bg-gray-800"
+          >
+            Stop & transcribe
+          </button>
+        )}
+      </div>
+      {error && <p className="text-sm text-red-600">{error}</p>}
+    </div>
+  );
+}
