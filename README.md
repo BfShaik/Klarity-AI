@@ -2,6 +2,18 @@
 
 Personal work ledger: track your work, daily planner, work log, notes, and manager review summaries (weekly / monthly / quarterly / annual).
 
+## Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| **Framework** | [Next.js 14](https://nextjs.org/) (App Router) |
+| **UI** | [React 18](https://react.dev/) |
+| **Language** | [TypeScript](https://www.typescriptlang.org/) |
+| **Styling** | [Tailwind CSS](https://tailwindcss.com/) |
+| **Backend / DB** | [Supabase](https://supabase.com/) (PostgreSQL, Auth) |
+| **API** | Next.js Route Handlers (`app/api/*`) |
+| **Package manager** | npm |
+
 ## Setup
 
 1. **Install dependencies**
