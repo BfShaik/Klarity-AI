@@ -1,13 +1,21 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
+import { logger } from "@/lib/logger";
+import { toUserMessage, getErrorContextForLog } from "@/lib/errors";
+import { ensureProfile } from "@/lib/ensure-profile";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
+  const start = Date.now();
+  let userId: string | undefined;
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    await ensureProfile(supabase, user);
+    userId = user.id;
+    logger.info("Work log create started", { operation: "createWorkLog", resource: "work_logs", userId });
 
     let body;
     try {
@@ -39,12 +47,10 @@ export async function POST(request: Request) {
     }).select().single();
 
     if (error) throw error;
+    logger.info("Work log create succeeded", { operation: "createWorkLog", resource: "work_logs", userId, durationMs: Date.now() - start });
     return NextResponse.json({ ok: true, data });
   } catch (error) {
-    console.error("Work log API error:", error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to save work log" },
-      { status: 500 }
-    );
+    logger.error("Work log create failed", { operation: "createWorkLog", resource: "work_logs", userId, durationMs: Date.now() - start, error: getErrorContextForLog(error) });
+    return NextResponse.json({ error: toUserMessage(error) }, { status: 500 });
   }
 }

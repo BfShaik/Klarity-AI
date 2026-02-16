@@ -15,8 +15,8 @@ export default async function CertificationsPage() {
   if (catalogError || earnedError) {
     return (
       <div>
-        <h1 className="text-2xl font-bold mb-6">Certifications</h1>
-        <p className="text-red-600">Error loading data: {catalogError?.message ?? earnedError?.message}</p>
+        <h1 className="text-2xl font-bold mb-6 text-white">Certifications</h1>
+        <p className="text-red-400">Error loading data: {catalogError?.message ?? earnedError?.message}</p>
       </div>
     );
   }
@@ -27,21 +27,20 @@ export default async function CertificationsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Certifications</h1>
+      <h1 className="text-2xl font-bold mb-6 text-white">Certifications</h1>
       {!catalog?.length ? (
-        <p className="text-gray-600">
-          No certification catalog yet. Seed the certification_catalog table in Supabase.
+        <p className="text-slate-400">No certification catalog yet. Seed the certification_catalog table in Supabase.
         </p>
       ) : (
         <ul className="space-y-3">
           {catalog.map((c) => (
-            <li key={c.id} className="border rounded-lg p-4 flex items-center justify-between">
+            <li key={c.id} className="card-bg p-4 flex items-center justify-between">
               <div>
-                <p className="font-medium">{c.name}</p>
-                <p className="text-sm text-gray-600">{c.level}</p>
+                <p className="font-medium text-white">{c.name}</p>
+                <p className="text-sm text-slate-400">{c.level}</p>
               </div>
               {earnedIds.has(c.id) ? (
-                <span className="text-sm text-green-600">Earned</span>
+                <span className="text-sm text-emerald-400">Earned</span>
               ) : (
                 <form action={markCertificationEarned} className="flex items-center gap-2">
                   <input type="hidden" name="certification_id" value={c.id} />
@@ -49,11 +48,11 @@ export default async function CertificationsPage() {
                     type="date"
                     name="earned_at"
                     defaultValue={new Date().toISOString().slice(0, 10)}
-                    className="rounded border border-gray-300 px-2 py-1 text-sm"
+                    className="input-dark px-2 py-1 text-sm"
                   />
                   <button
                     type="submit"
-                    className="text-sm rounded bg-green-600 text-white px-3 py-1 hover:bg-green-700"
+                    className="btn-primary text-sm py-1 px-3"
                   >
                     Mark as earned
                   </button>

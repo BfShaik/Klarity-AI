@@ -33,42 +33,42 @@ export default function ReviewSummary({
             key={p.value}
             href={`/reviews?period=${p.value}`}
             className={`rounded px-3 py-1.5 text-sm font-medium ${
-              period === p.value ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+              period === p.value ? "bg-[var(--accent-red)] text-white" : "text-slate-300 bg-white/10 hover:bg-white/20 border border-slate-600"
             }`}
           >
             {p.label}
           </Link>
         ))}
       </div>
-      <p className="text-sm text-gray-600">
+      <p className="text-sm text-slate-400">
         {start} – {end}
       </p>
-      <div className="rounded border p-4 bg-gray-50 font-mono text-sm whitespace-pre-wrap" id="review-summary">
-        <h3 className="font-semibold mb-2">Daily plans</h3>
+      <div className="card-bg p-5 rounded-xl font-mono text-sm whitespace-pre-wrap text-slate-200" id="review-summary">
+        <h3 className="font-semibold mb-2 text-white">Daily plans</h3>
         {plans.length === 0 ? (
-          <p className="text-gray-500">No plans in this period.</p>
+          <p className="text-slate-500">No plans in this period.</p>
         ) : (
           plans.map((p) => (
             <div key={p.date} className="mb-4">
-              <p className="font-medium text-gray-700">{p.date}</p>
-              {p.content && <pre className="mt-1">{p.content}</pre>}
-              {p.notes && <p className="mt-1 text-gray-600">Notes: {p.notes}</p>}
+              <p className="font-medium text-slate-300">{p.date}</p>
+              {p.content && <pre className="mt-1 text-slate-200">{p.content}</pre>}
+              {p.notes && <p className="mt-1 text-slate-400">Notes: {p.notes}</p>}
             </div>
           ))
         )}
-        <h3 className="font-semibold mt-6 mb-2">Work log</h3>
+        <h3 className="font-semibold mt-6 mb-2 text-white">Work log</h3>
         {workLogs.length === 0 ? (
-          <p className="text-gray-500">No work log entries in this period.</p>
+          <p className="text-slate-500">No work log entries in this period.</p>
         ) : (
           workLogs.map((w) => (
-            <div key={w.date + w.summary} className="mb-2">
-              <span className="text-gray-700">{w.date}</span> — {w.summary}
+            <div key={w.date + w.summary} className="mb-2 text-slate-200">
+              <span className="text-slate-300">{w.date}</span> — {w.summary}
               {w.minutes != null && ` (${w.minutes} min)`}
             </div>
           ))
         )}
       </div>
-      <p className="text-sm text-gray-600">
+      <p className="text-sm text-slate-400">
         Copy the content above to share with your manager for 1:1s or formal reviews.
       </p>
     </div>

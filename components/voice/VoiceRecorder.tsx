@@ -70,22 +70,22 @@ export default function VoiceRecorder({
   if (!isSupported) {
     return (
       <div className="space-y-2">
-        <p className="text-sm font-medium text-gray-700">Voice note</p>
-        <p className="text-sm text-gray-500">Voice recording is not available in this browser.</p>
+        <p className="text-sm font-medium text-slate-300">Voice note</p>
+        <p className="text-sm text-slate-400">Voice recording is not available in this browser.</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-2">
-      <p className="text-sm font-medium text-gray-700">Voice note</p>
+      <p className="text-sm font-medium text-slate-300">Voice note</p>
       <div className="flex items-center gap-2">
         {!recording ? (
           <button
             type="button"
             onClick={startRecording}
             disabled={processing}
-            className="rounded bg-red-600 text-white px-4 py-2 text-sm font-medium hover:bg-red-700 disabled:opacity-50"
+            className="btn-primary disabled:opacity-50"
           >
             {processing ? "Processing…" : "Start recording"}
           </button>
@@ -93,13 +93,13 @@ export default function VoiceRecorder({
           <button
             type="button"
             onClick={stopRecording}
-            className="rounded bg-gray-700 text-white px-4 py-2 text-sm font-medium hover:bg-gray-800"
+            className="btn-secondary"
           >
             Stop & transcribe
           </button>
         )}
       </div>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-red-400">{error}</p>}
     </div>
   );
 }

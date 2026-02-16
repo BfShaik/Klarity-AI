@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
+import { logger } from "@/lib/logger";
+import { toUserMessage, getErrorContextForLog } from "@/lib/errors";
 
 export const dynamic = "force-dynamic";
 
 // Stub: wire to Whisper or another speech-to-text service when ready.
 export async function POST(request: Request) {
+  const start = Date.now();
   try {
+    logger.info("Transcribe request started", { operation: "transcribe", resource: "transcribe" });
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
     
@@ -35,16 +39,14 @@ export async function POST(request: Request) {
     }
 
     // TODO: upload to temp storage, call Whisper/AssemblyAI, return transcript
-    return NextResponse.json({ 
+    logger.info("Transcribe request succeeded", { operation: "transcribe", resource: "transcribe", durationMs: Date.now() - start });
+    return NextResponse.json({
       transcript: "(transcription not configured)",
       fileSize: file.size,
       fileType: file.type,
     });
   } catch (error) {
-    console.error("Transcribe error:", error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Transcription failed" },
-      { status: 500 }
-    );
+    logger.error("Transcribe request failed", { operation: "transcribe", resource: "transcribe", durationMs: Date.now() - start, error: getErrorContextForLog(error) });
+    return NextResponse.json({ error: toUserMessage(error) }, { status: 500 });
   }
 }

@@ -53,15 +53,15 @@ export default async function ReviewsPage({
   if (plansError || workLogsError) {
     return (
       <div>
-        <h1 className="text-2xl font-bold mb-6">Manager review</h1>
-        <p className="text-red-600">Error loading data: {plansError?.message ?? workLogsError?.message}</p>
+        <h1 className="text-2xl font-bold mb-6 text-white">Manager review</h1>
+        <p className="text-red-400">Error loading data: {plansError?.message ?? workLogsError?.message}</p>
       </div>
     );
   }
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Manager review</h1>
+      <h1 className="text-2xl font-bold mb-6 text-white">Manager review</h1>
       <ReviewSummary
         period={period}
         plans={plans ?? []}

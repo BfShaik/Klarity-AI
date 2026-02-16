@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import VoiceRecorder from "@/components/voice/VoiceRecorder";
 
 type Customer = { id: string; name: string };
@@ -15,6 +15,8 @@ export default function NoteForm({
   const [body, setBody] = useState("");
   const [refining, setRefining] = useState(false);
   const [refineError, setRefineError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
 
   async function handleRefine() {
     if (!body.trim()) return;
@@ -39,22 +41,39 @@ export default function NoteForm({
     }
   }
 
+  async function handleSubmit(formData: FormData) {
+    setSubmitError(null);
+    startTransition(async () => {
+      try {
+        await action(formData);
+      } catch (err) {
+        setSubmitError(err instanceof Error ? err.message : "Could not save note. Please try again.");
+      }
+    });
+  }
+
   return (
-    <form action={action} className="space-y-4 max-w-xl">
+    <form action={handleSubmit} className="space-y-4 max-w-xl">
+      {submitError && (
+        <div className="rounded-lg border-2 border-red-500/50 bg-red-500/10 p-4" role="alert">
+          <p className="font-medium text-red-400">Could not save</p>
+          <p className="mt-1 text-sm text-red-300">{submitError}</p>
+        </div>
+      )}
       <div>
-        <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor="title" className="block text-sm font-medium text-slate-300 mb-1">
           Title
         </label>
         <input
           id="title"
           name="title"
           required
-          className="w-full rounded border border-gray-300 px-3 py-2"
+          className="w-full input-dark"
         />
       </div>
       <VoiceRecorder onTranscript={(text) => setBody((prev) => (prev ? prev + "\n\n" + text : text))} />
       <div>
-        <label htmlFor="body" className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor="body" className="block text-sm font-medium text-slate-300 mb-1">
           Body
         </label>
         <textarea
@@ -63,31 +82,31 @@ export default function NoteForm({
           rows={6}
           value={body}
           onChange={(e) => setBody(e.target.value)}
-          className="w-full rounded border border-gray-300 px-3 py-2"
+          className="w-full input-dark"
         />
         <div className="mt-2 flex items-center gap-2">
           <button
             type="button"
             onClick={handleRefine}
             disabled={refining || !body.trim()}
-            className="text-sm rounded bg-gray-200 text-gray-700 px-3 py-1.5 hover:bg-gray-300 disabled:opacity-50"
+            className="btn-secondary text-sm py-1.5 px-3 disabled:opacity-50"
           >
             {refining ? "Refining…" : "Refine with AI"}
           </button>
           {refineError && (
-            <span className="text-sm text-red-600">{refineError}</span>
+            <span className="text-sm text-red-400">{refineError}</span>
           )}
         </div>
       </div>
       {customers.length > 0 && (
         <div>
-          <label htmlFor="customer_id" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="customer_id" className="block text-sm font-medium text-slate-300 mb-1">
             Customer
           </label>
           <select
             id="customer_id"
             name="customer_id"
-            className="w-full rounded border border-gray-300 px-3 py-2"
+            className="w-full input-dark"
           >
             <option value="">— None —</option>
             {customers.map((c) => (
@@ -100,9 +119,10 @@ export default function NoteForm({
       )}
       <button
         type="submit"
-        className="rounded bg-blue-600 text-white px-4 py-2 font-medium hover:bg-blue-700"
+        disabled={isPending}
+        className="btn-primary"
       >
-        Save note
+        {isPending ? "Saving…" : "Save note"}
       </button>
     </form>
   );

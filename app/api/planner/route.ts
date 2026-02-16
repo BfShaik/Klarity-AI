@@ -1,13 +1,21 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
+import { logger } from "@/lib/logger";
+import { toUserMessage, getErrorContextForLog } from "@/lib/errors";
+import { ensureProfile } from "@/lib/ensure-profile";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
+  const start = Date.now();
+  let userId: string | undefined;
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    await ensureProfile(supabase, user);
+    userId = user.id;
+    logger.info("Planner save started", { operation: "savePlan", resource: "daily_plans", userId });
 
     let body;
     try {
@@ -42,6 +50,7 @@ export async function POST(request: Request) {
         .select()
         .single();
       if (error) throw error;
+      logger.info("Planner save succeeded", { operation: "savePlan", resource: "daily_plans", userId, durationMs: Date.now() - start });
       return NextResponse.json({ ok: true, data });
     } else {
       const { error, data } = await supabase.from("daily_plans").insert({
@@ -51,13 +60,11 @@ export async function POST(request: Request) {
         notes: notes != null ? String(notes).trim() : null,
       }).select().single();
       if (error) throw error;
+      logger.info("Planner save succeeded", { operation: "savePlan", resource: "daily_plans", userId, durationMs: Date.now() - start });
       return NextResponse.json({ ok: true, data });
     }
   } catch (error) {
-    console.error("Planner API error:", error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to save plan" },
-      { status: 500 }
-    );
+    logger.error("Planner save failed", { operation: "savePlan", resource: "daily_plans", userId, durationMs: Date.now() - start, error: getErrorContextForLog(error) });
+    return NextResponse.json({ error: toUserMessage(error) }, { status: 500 });
   }
 }

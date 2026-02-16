@@ -15,8 +15,8 @@ export default async function BadgesPage() {
   if (catalogError || earnedError) {
     return (
       <div>
-        <h1 className="text-2xl font-bold mb-6">Badges</h1>
-        <p className="text-red-600">Error loading data: {catalogError?.message ?? earnedError?.message}</p>
+        <h1 className="text-2xl font-bold mb-6 text-white">Badges</h1>
+        <p className="text-red-400">Error loading data: {catalogError?.message ?? earnedError?.message}</p>
       </div>
     );
   }
@@ -25,26 +25,26 @@ export default async function BadgesPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Badges</h1>
+      <h1 className="text-2xl font-bold mb-6 text-white">Badges</h1>
       {!catalog?.length ? (
-        <p className="text-gray-600">No badge catalog yet. Seed the badge_catalog table in Supabase.</p>
+        <p className="text-slate-400">No badge catalog yet. Seed the badge_catalog table in Supabase.</p>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
           {catalog.map((b) => (
-            <div key={b.id} className="border rounded-lg p-4 text-center">
+            <div key={b.id} className="card-bg p-4 text-center">
               {b.image_url && (
                 <img src={b.image_url} alt={b.name} className="w-16 h-16 mx-auto object-contain" />
               )}
-              <p className="font-medium mt-2">{b.name}</p>
+              <p className="font-medium mt-2 text-white">{b.name}</p>
               {earnedIds.has(b.id) ? (
-                <span className="text-sm text-green-600">Earned</span>
+                <span className="text-sm text-emerald-400">Earned</span>
               ) : (
                 <form action={markBadgeEarned} className="mt-2">
                   <input type="hidden" name="badge_id" value={b.id} />
                   <input type="hidden" name="earned_at" value={new Date().toISOString().slice(0, 10)} />
                   <button
                     type="submit"
-                    className="text-sm rounded bg-green-600 text-white px-3 py-1 hover:bg-green-700"
+                    className="btn-primary text-sm py-1 px-3"
                   >
                     Mark as earned
                   </button>

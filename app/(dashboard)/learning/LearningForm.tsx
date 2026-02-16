@@ -26,35 +26,35 @@ export default function LearningForm() {
   }
 
   return (
-    <form id="learning-form" action={handleSubmit} className="mb-8 p-4 border rounded-lg bg-gray-50 max-w-md space-y-3">
+    <form id="learning-form" action={handleSubmit} className="mb-8 p-5 card-bg max-w-md space-y-3 text-slate-200">
       <h2 className="font-semibold">Add learning item</h2>
       {error && (
-        <div className="rounded bg-red-50 border border-red-200 p-2">
-          <p className="text-sm text-red-600">{error}</p>
+        <div className="rounded border border-red-500/50 bg-red-500/10 p-2">
+          <p className="text-sm text-red-400">{error}</p>
         </div>
       )}
       {success && (
-        <div className="rounded bg-green-50 border border-green-200 p-2">
-          <p className="text-sm text-green-600">Learning item added successfully!</p>
+        <div className="rounded border border-emerald-500/50 bg-emerald-500/10 p-2">
+          <p className="text-sm text-emerald-400">Learning item added successfully!</p>
         </div>
       )}
       <input
         name="title"
         required
         placeholder="Title"
-        className="w-full rounded border border-gray-300 px-3 py-2"
+        className="w-full input-dark"
       />
       <input
         name="source"
         required
         placeholder="Source (e.g. Oracle Learning, YouTube)"
-        className="w-full rounded border border-gray-300 px-3 py-2"
+        className="w-full input-dark"
       />
       <input
         name="external_url"
         type="url"
         placeholder="URL (optional)"
-        className="w-full rounded border border-gray-300 px-3 py-2"
+        className="w-full input-dark"
       />
       <input
         name="progress_percent"
@@ -63,12 +63,12 @@ export default function LearningForm() {
         max={100}
         defaultValue={0}
         placeholder="Progress %"
-        className="w-24 rounded border border-gray-300 px-3 py-2"
+        className="w-24 input-dark"
       />
       <button 
         type="submit" 
         disabled={isPending}
-        className="rounded bg-blue-600 text-white px-4 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+        className="btn-primary"
       >
         {isPending ? "Adding…" : "Add"}
       </button>

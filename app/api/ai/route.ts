@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
+import { logger } from "@/lib/logger";
+import { toUserMessage, getErrorContextForLog } from "@/lib/errors";
 
 export const dynamic = "force-dynamic";
 
 // Stub: wire to OpenAI/Claude for note refinement and summary generation.
 export async function POST(request: Request) {
+  const start = Date.now();
   try {
+    logger.info("AI API request started", { operation: "ai", resource: "ai" });
     let body;
     try {
       body = await request.json();
@@ -23,22 +27,21 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "text must be a string" }, { status: 400 });
       }
       // TODO: send note text to LLM, return suggested edit
-      return NextResponse.json({ 
-        suggested: text ? `(AI refinement placeholder)\n\n${text}` : "" 
+      logger.info("AI API request succeeded", { operation: "ai", resource: "ai", durationMs: Date.now() - start });
+      return NextResponse.json({
+        suggested: text ? `(AI refinement placeholder)\n\n${text}` : "",
       });
     }
 
     if (action === "summarize") {
       // TODO: send plans + work logs to LLM, return summary
+      logger.info("AI API request succeeded", { operation: "ai", resource: "ai", durationMs: Date.now() - start });
       return NextResponse.json({ summary: "" });
     }
 
     return NextResponse.json({ error: "Unknown action. Use 'refine' or 'summarize'" }, { status: 400 });
   } catch (error) {
-    console.error("AI API error:", error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "AI processing failed" },
-      { status: 500 }
-    );
+    logger.error("AI API request failed", { operation: "ai", resource: "ai", durationMs: Date.now() - start, error: getErrorContextForLog(error) });
+    return NextResponse.json({ error: toUserMessage(error) }, { status: 500 });
   }
 }

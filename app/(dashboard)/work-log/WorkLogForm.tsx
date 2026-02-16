@@ -47,53 +47,53 @@ export default function WorkLogForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 max-w-xl p-4 border rounded-lg bg-gray-50">
+    <form onSubmit={handleSubmit} className="space-y-4 max-w-xl p-5 card-bg text-slate-200">
       <h2 className="font-semibold">Add entry</h2>
       {error && (
-        <div className="rounded bg-red-50 border border-red-200 p-3">
-          <p className="text-sm text-red-600">{error}</p>
+        <div className="rounded border border-red-500/50 bg-red-500/10 p-3">
+          <p className="text-sm text-red-400">{error}</p>
         </div>
       )}
       {success && (
-        <div className="rounded bg-green-50 border border-green-200 p-3">
-          <p className="text-sm text-green-600">Work log entry added successfully!</p>
+        <div className="rounded border border-emerald-500/50 bg-emerald-500/10 p-3">
+          <p className="text-sm text-emerald-400">Work log entry added successfully!</p>
         </div>
       )}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+        <label className="block text-sm font-medium text-slate-300 mb-1">Date</label>
         <input
           type="date"
           value={date}
           onChange={(e) => setDate(e.target.value)}
           required
-          className="rounded border border-gray-300 px-3 py-2"
+          className="input-dark"
         />
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">What you did</label>
+        <label className="block text-sm font-medium text-slate-300 mb-1">What you did</label>
         <input
           type="text"
           value={summary}
           onChange={(e) => setSummary(e.target.value)}
           required
           placeholder="Short summary"
-          className="w-full rounded border border-gray-300 px-3 py-2"
+          className="w-full input-dark"
         />
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Minutes (optional)</label>
+        <label className="block text-sm font-medium text-slate-300 mb-1">Minutes (optional)</label>
         <input
           type="number"
           min={0}
           value={minutes}
           onChange={(e) => setMinutes(e.target.value)}
-          className="w-24 rounded border border-gray-300 px-3 py-2"
+          className="w-24 input-dark"
         />
       </div>
       <button
         type="submit"
         disabled={saving}
-        className="rounded bg-blue-600 text-white px-4 py-2 font-medium hover:bg-blue-700 disabled:opacity-50"
+        className="btn-primary"
       >
         {saving ? "Saving…" : "Add entry"}
       </button>

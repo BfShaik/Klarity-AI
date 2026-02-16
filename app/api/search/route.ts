@@ -1,14 +1,20 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
+import { logger } from "@/lib/logger";
+import { toUserMessage, getErrorContextForLog } from "@/lib/errors";
 
 export const dynamic = "force-dynamic";
 
 // Keyword search stub. Add semantic/vector search when embeddings are set up.
 export async function GET(request: Request) {
+  const start = Date.now();
+  let userId: string | undefined;
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    userId = user.id;
+    logger.info("Search started", { operation: "search", resource: "search", userId });
 
     const { searchParams } = new URL(request.url);
     const raw = searchParams.get("q")?.trim();
@@ -37,6 +43,7 @@ export async function GET(request: Request) {
       new Map(allNotes.map((n) => [n.id, n])).values()
     );
 
+    logger.info("Search succeeded", { operation: "search", resource: "search", userId, durationMs: Date.now() - start });
     return NextResponse.json({
       results: {
         notes: uniqueNotes,
@@ -44,10 +51,7 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
-    console.error("Search API error:", error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Search failed" },
-      { status: 500 }
-    );
+    logger.error("Search failed", { operation: "search", resource: "search", userId, durationMs: Date.now() - start, error: getErrorContextForLog(error) });
+    return NextResponse.json({ error: toUserMessage(error) }, { status: 500 });
   }
 }

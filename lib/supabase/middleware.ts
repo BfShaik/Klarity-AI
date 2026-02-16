@@ -1,6 +1,18 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+function isConnectionError(e: unknown): boolean {
+  const msg = (e instanceof Error ? e.message + " " + (e.cause ? String(e.cause) : "") : String(e)).toLowerCase();
+  return (
+    msg.includes("fetch failed") ||
+    msg.includes("econnrefused") ||
+    msg.includes("etimedout") ||
+    msg.includes("connection refused") ||
+    msg.includes("failed to fetch") ||
+    msg.includes("network")
+  );
+}
+
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
 
@@ -22,14 +34,28 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let user;
+  try {
+    const { data } = await supabase.auth.getUser();
+    user = data.user;
+  } catch (e) {
+    if (isConnectionError(e)) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/service-unavailable";
+      return NextResponse.redirect(url);
+    }
+    throw e;
+  }
 
   const isAuthRoute =
     request.nextUrl.pathname.startsWith("/login") ||
     request.nextUrl.pathname.startsWith("/signup") ||
     request.nextUrl.pathname.startsWith("/auth/");
+  const isServiceUnavailable = request.nextUrl.pathname === "/service-unavailable";
+
+  if (isServiceUnavailable) {
+    return response;
+  }
 
   if (!user && !isAuthRoute) {
     const url = request.nextUrl.clone();
