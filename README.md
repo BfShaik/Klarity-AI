@@ -1,6 +1,24 @@
 # Klarity AI
 
-Personal work ledger: track your work, daily planner, work log, notes, and manager review summaries (weekly / monthly / quarterly / annual).
+Personal work ledger: track your work, daily planner, work log, notes, achievements, and manager review summaries (weekly / monthly / quarterly / annual).
+
+![Klarity AI Dashboard](./public/dashboard-screenshot.png)
+
+## Features
+
+- **Dashboard** — Overview with action buttons (Add work log, New note, Open planner, Learning), summary cards (achievements, goals, notes, work log), and charts (work log activity, goals progress). Period selector (Week / Month / All).
+- **Auth** — Sign up, sign in, sign out; protected routes; profile creation via trigger; service-unavailable handling when Supabase is unreachable.
+- **Achievements** — List, detail view, and edit/delete for certifications, badges, and custom milestones.
+- **Certifications & Badges** — Catalog views with mark-as-earned; seed `certification_catalog` and `badge_catalog` in Supabase.
+- **Learning** — Learning progress table with edit/delete and progress percentage.
+- **Goals** — Goals table with status (active/completed/cancelled), edit/delete, target dates.
+- **Customers** — Customer list with add/edit/delete.
+- **Notes** — List, new note (with voice recording & AI refine), detail view with edit, customer linking.
+- **Planner** — Daily plan for today; save/clear; plan items and notes.
+- **Work log** — Add, edit, delete entries (date, summary, optional minutes); list with DataGrid.
+- **Reviews** — Manager review with period selector (Weekly / Monthly / Quarterly / Annual); shows plans + work log for the range.
+- **Settings** — Profile/settings page.
+- **APIs** — `/api/planner`, `/api/work-logs`, `/api/transcribe`, `/api/ai`, `/api/search`.
 
 ## Tech Stack
 
@@ -10,6 +28,7 @@ Personal work ledger: track your work, daily planner, work log, notes, and manag
 | **UI** | [React 18](https://react.dev/) |
 | **Language** | [TypeScript](https://www.typescriptlang.org/) |
 | **Styling** | [Tailwind CSS](https://tailwindcss.com/) |
+| **Icons & Charts** | [Lucide React](https://lucide.dev/), [Recharts](https://recharts.org/) |
 | **Backend / DB** | [Supabase](https://supabase.com/) (PostgreSQL, Auth) |
 | **API** | Next.js Route Handlers (`app/api/*`) |
 | **Package manager** | npm |
@@ -37,26 +56,23 @@ Personal work ledger: track your work, daily planner, work log, notes, and manag
    ```
    Open [http://localhost:3000](http://localhost:3000). Sign up at `/signup`, then sign in at `/login`.
 
-## What’s included
+   For a clean restart (kills ports 3000–3005 and starts dev):
+   ```bash
+   npm run dev:restart
+   ```
 
-- **Auth** — Sign up, sign in, sign out; protected dashboard; profile creation via trigger.
-- **Dashboard** — Counts for achievements, goals, notes, work log.
-- **Achievements** — List and detail (certifications, badges, milestones).
-- **Certifications & badges** — Catalog views (seed `certification_catalog` and `badge_catalog` in Supabase for data).
-- **Learning & goals** — Learning progress and goals list.
-- **Customers** — List of customers (for linking notes).
-- **Notes** — List, new note (with optional customer), and detail view.
-- **Planner** — Daily plan for today (plan items + notes); save/update via API.
-- **Work log** — Add entries (date, summary, optional minutes); list recent entries.
-- **Reviews** — Manager review page with period selector (Weekly / Monthly / Quarterly / Annual); shows plans + work log for the range.
-- **Settings** — Profile/settings placeholder.
-- **API stubs** — `/api/planner`, `/api/work-logs`, `/api/transcribe`, `/api/ai`, `/api/search` (search is keyword-only for now).
+## UI & Design
 
-See **PLAN.md** and **REQUIREMENTS.md** for full scope and future work (voice-to-text, AI refinement, semantic search).
+- **Dark theme** — HealthApp-style layout: dark sidebar (`#1a202c`), main background (`#1a1b2c`), cards (`#282a3a`), red accent (`#ef4444`).
+- **Sidebar** — Icons for each nav item; red pill active state; collapsible-friendly.
+- **Shared components** — DataGrid, Modal, ActionButtons for consistent tables and dialogs across the app.
+- **Error handling** — Root error, global error, and dashboard error boundaries; inline styles for reliability when CSS fails to load.
 
-## 📚 Documentation
+## Documentation
 
-- **ARCHITECTURE.md** - Complete code structure, directory layout, and architecture overview
-- **CONTROL-FLOW.md** - Visual diagrams showing data flow and control flow patterns
-- **API-TESTING-SUMMARY.md** - Backend API documentation and testing results
-- **UI-IMPROVEMENTS-SUMMARY.md** - UI component improvements and functionality
+- **ARCHITECTURE.md** — Code structure and directory layout
+- **CONTROL-FLOW.md** — Data flow and control flow diagrams
+- **API-TESTING-SUMMARY.md** — Backend API documentation
+- **UI-IMPROVEMENTS-SUMMARY.md** — UI component improvements
+- **PLAN.md** — Full scope and roadmap
+- **REQUIREMENTS.md** — Functional and non-functional requirements
