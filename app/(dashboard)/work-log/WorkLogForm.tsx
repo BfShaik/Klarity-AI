@@ -3,10 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export default function WorkLogForm() {
+type Customer = { id: string; name: string };
+
+export default function WorkLogForm({ customers }: { customers: Customer[] }) {
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [summary, setSummary] = useState("");
   const [minutes, setMinutes] = useState("");
+  const [customerId, setCustomerId] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -25,6 +28,7 @@ export default function WorkLogForm() {
           date,
           summary,
           minutes: minutes ? parseInt(minutes, 10) : null,
+          customer_id: customerId || null,
         }),
       });
       const data = await res.json();
@@ -32,6 +36,7 @@ export default function WorkLogForm() {
         setSuccess(true);
         setSummary("");
         setMinutes("");
+        setCustomerId("");
         setTimeout(() => {
           setSuccess(false);
           router.refresh();
@@ -90,6 +95,23 @@ export default function WorkLogForm() {
           className="w-24 input-dark"
         />
       </div>
+      {customers.length > 0 && (
+        <div>
+          <label className="block text-sm font-medium text-slate-300 mb-1">Customer</label>
+          <select
+            value={customerId}
+            onChange={(e) => setCustomerId(e.target.value)}
+            className="w-full input-dark"
+          >
+            <option value="">— None —</option>
+            {customers.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       <button
         type="submit"
         disabled={saving}

@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
+import { Suspense } from "react";
 import {
   ClipboardList,
   StickyNote,
@@ -45,22 +46,35 @@ async function getCounts(supabase: Awaited<ReturnType<typeof createClient>>) {
   }
 }
 
-async function getWorkLogChartData(supabase: Awaited<ReturnType<typeof createClient>>) {
+type Period = "week" | "month" | "all";
+
+async function getWorkLogChartData(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  period: Period = "week"
+) {
   try {
     const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     const today = new Date();
-    const weekAgo = new Date(today);
-    weekAgo.setDate(weekAgo.getDate() - 6);
+    const startDate = new Date(today);
+
+    if (period === "week") {
+      startDate.setDate(startDate.getDate() - 6);
+    } else if (period === "month") {
+      startDate.setDate(startDate.getDate() - 29);
+    } else {
+      startDate.setDate(startDate.getDate() - 89); // ~90 days for "all"
+    }
 
     const { data } = await supabase
       .from("work_logs")
       .select("date")
-      .gte("date", weekAgo.toISOString().slice(0, 10))
+      .gte("date", startDate.toISOString().slice(0, 10))
       .lte("date", today.toISOString().slice(0, 10));
 
+    const dayCount = period === "week" ? 7 : period === "month" ? 30 : 90;
     const byDay: Record<string, number> = {};
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(weekAgo);
+    for (let i = 0; i < dayCount; i++) {
+      const d = new Date(startDate);
       d.setDate(d.getDate() + i);
       byDay[d.toISOString().slice(0, 10)] = 0;
     }
@@ -80,11 +94,21 @@ async function getWorkLogChartData(supabase: Awaited<ReturnType<typeof createCli
   }
 }
 
-export default async function DashboardPage() {
+type SearchParams = { period?: string };
+
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>;
+}) {
+  const params = await searchParams;
+  const period: Period =
+    params.period === "month" || params.period === "all" ? params.period : "week";
+
   const supabase = await createClient();
   const [counts, workLogChartData] = await Promise.all([
     getCounts(supabase),
-    getWorkLogChartData(supabase),
+    getWorkLogChartData(supabase, period),
   ]);
 
   const { data: { user } } = await supabase.auth.getUser();
@@ -108,7 +132,9 @@ export default async function DashboardPage() {
           <h1 className="text-2xl font-bold text-white">Dashboard</h1>
           <p className="text-slate-400 mt-1">Welcome back, {greeting}!</p>
         </div>
-        <PeriodSelector />
+        <Suspense fallback={null}>
+          <PeriodSelector />
+        </Suspense>
       </div>
 
       {/* Action buttons - colorful like HealthApp */}
@@ -166,7 +192,9 @@ export default async function DashboardPage() {
         <div className="card-bg p-5 rounded-xl">
           <div className="flex items-center gap-2 mb-4">
             <BarChart3 size={20} className="text-white" />
-            <h2 className="text-lg font-semibold text-white">Work log activity (last 7 days)</h2>
+            <h2 className="text-lg font-semibold text-white">
+              Work log activity {period === "week" ? "(last 7 days)" : period === "month" ? "(last 30 days)" : "(last 90 days)"}
+            </h2>
           </div>
           <WorkLogActivityChart data={workLogChartData} />
         </div>

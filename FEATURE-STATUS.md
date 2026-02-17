@@ -161,7 +161,7 @@ Last updated: February 17, 2026.
 
 | Feature | Requirement | Notes |
 |---------|-------------|-------|
-| Filter notes by customer and date | FR-5.4 | No filter UI |
+| Filter notes by customer and date | FR-5.4 | Done — NotesFilters with customer dropdown, from/to date range |
 | AI note creation & approval flow | FR-5.6 | Refine is placeholder; no LLM integration |
 | Store recording + audio_url | FR-6.3 | Transcribe returns placeholder |
 
@@ -177,8 +177,8 @@ Last updated: February 17, 2026.
 
 | Feature | Requirement | Notes |
 |---------|-------------|-------|
-| Link work log to customer | FR-8.1 | Schema has `customer_id`; form has no customer selector |
-| Filter by date range | FR-8.2 | No filter UI; shows all |
+| Link work log to customer | FR-8.1 | Done — Customer dropdown on add/edit; Customer column in table |
+| Filter by date range | FR-8.2 | Done — WorkLogFilters with from/to date range |
 
 ### Manager Review
 
@@ -215,7 +215,7 @@ Last updated: February 17, 2026.
 
 | Feature | Notes |
 |---------|-------|
-| Wire period to charts | Period selector is UI only; charts use fixed last 7 days |
+| Wire period to charts | Done — Period selector (Week/Month/All) drives work log chart date range via URL params |
 
 ---
 
@@ -232,7 +232,7 @@ Last updated: February 17, 2026.
 | Notes | 6 | 3 |
 | Voice to Text | 1 | 3 |
 | Planner | 5 | 0 |
-| Work Log | 3 | 2 |
+| Work Log | 4 | 1 |
 | Manager Review | 4 | 1 |
 | Search | 2 | 4 |
 | AI | 0 | 4 |
@@ -247,5 +247,5 @@ Last updated: February 17, 2026.
 - AI summary & reports for Reviews
 - Unified search UI
 - Semantic search (embeddings)
-- Work log customer link
-- Notes filter by customer/date
+- ~~Work log customer link~~ Done
+- ~~Notes filter by customer/date~~ Done

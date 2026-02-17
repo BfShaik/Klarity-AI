@@ -19,9 +19,11 @@ export async function updateWorkLog(id: string, formData: FormData) {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("Invalid date format. Use YYYY-MM-DD.");
       const minutesRaw = formData.get("minutes");
       const minutes = minutesRaw !== null && minutesRaw !== "" ? Math.max(0, parseInt(String(minutesRaw), 10)) : null;
+      const customerIdRaw = (formData.get("customer_id") as string)?.trim();
+      const customerId = customerIdRaw || null;
       const { error } = await supabase
         .from("work_logs")
-        .update({ date, summary, minutes, updated_at: new Date().toISOString() })
+        .update({ date, summary, minutes, customer_id: customerId, updated_at: new Date().toISOString() })
         .eq("id", id)
         .eq("user_id", user.id);
       if (error) throw error;

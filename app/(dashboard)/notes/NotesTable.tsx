@@ -5,13 +5,16 @@ import { DataGrid } from "@/components/ui/DataGrid";
 import { ActionButtons } from "@/components/ui/ActionButtons";
 import { deleteNote } from "./actions";
 
-type Note = { id: string; title: string; created_at: string };
+type Note = { id: string; title: string; created_at: string; customer_id?: string | null };
+type Customer = { id: string; name: string };
 
-export default function NotesTable({ notes }: { notes: Note[] }) {
+export default function NotesTable({ notes, customers }: { notes: Note[]; customers: Customer[] }) {
+  const customerMap: Record<string, string> = Object.fromEntries(customers.map((c) => [c.id, c.name]));
   const rows = notes.map((n) => ({
     id: n.id,
     title: n.title,
     created_at: new Date(n.created_at).toLocaleDateString(),
+    customer_id: n.customer_id,
   }));
 
   return (
@@ -26,6 +29,18 @@ export default function NotesTable({ notes }: { notes: Note[] }) {
             </Link>
           ),
         },
+        ...(customers.length > 0
+          ? [
+              {
+                key: "customer_id",
+                label: "Customer",
+                render: (row: { customer_id?: string }) => {
+                  const cid = row.customer_id;
+                  return (cid && customerMap[cid]) ? customerMap[cid] : "—";
+                },
+              } as const,
+            ]
+          : []),
         { key: "created_at", label: "Date" },
       ]}
       data={rows}

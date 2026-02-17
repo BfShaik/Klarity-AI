@@ -24,7 +24,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
-    const { date, summary, minutes } = body;
+    const { date, summary, minutes, customer_id } = body;
     if (!date || !summary) {
       return NextResponse.json({ error: "date and summary required" }, { status: 400 });
     }
@@ -39,11 +39,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "minutes must be a non-negative number" }, { status: 400 });
     }
 
+    const customerId = typeof customer_id === "string" && customer_id.trim() ? customer_id.trim() : null;
+
     const { error, data } = await supabase.from("work_logs").insert({
       user_id: user.id,
       date,
       summary: summary.trim(),
       minutes: minutes ?? null,
+      customer_id: customerId,
     }).select().single();
 
     if (error) throw error;
