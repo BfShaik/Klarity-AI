@@ -9,14 +9,15 @@ Personal work ledger: track your work, daily planner, work log, notes, achieveme
 - **Dashboard** — Overview with action buttons (Add work log, New note, Open planner, Learning), summary cards (achievements, goals, notes, work log), and charts (work log activity, goals progress). Period selector (Week / Month / All).
 - **Auth** — Sign up, sign in, sign out; protected routes; profile creation via trigger; service-unavailable handling when Supabase is unreachable.
 - **Achievements** — List, detail view, and edit/delete for certifications, badges, and custom milestones.
-- **Certifications & Badges** — Catalog views with mark-as-earned; seed `certification_catalog` and `badge_catalog` in Supabase.
+- **Certifications** — Add custom certifications or pick from catalog; mark as earned.
+- **Badges** — Add custom badges or pick from catalog; mark as earned.
 - **Learning** — Learning progress table with edit/delete and progress percentage.
 - **Goals** — Goals table with status (active/completed/cancelled), edit/delete, target dates.
 - **Customers** — Customer list with add/edit/delete.
 - **Notes** — List, new note (with voice recording & AI refine), detail view with edit, customer linking.
 - **Planner** — Daily plan for today; save/clear; plan items and notes.
 - **Work log** — Add, edit, delete entries (date, summary, optional minutes); list with DataGrid.
-- **Reviews** — Manager review with period selector (Weekly / Monthly / Quarterly / Annual); shows plans + work log for the range.
+- **Reviews** — Manager review with period selector (Weekly / Monthly / Quarterly / Annual); shows plans + work log; add custom review notes.
 - **Settings** — Profile/settings page.
 - **APIs** — `/api/planner`, `/api/work-logs`, `/api/transcribe`, `/api/ai`, `/api/search`.
 
@@ -50,7 +51,13 @@ Personal work ledger: track your work, daily planner, work log, notes, achieveme
      ```
    - In Supabase SQL Editor, run the full script in **`supabase/schema.sql`** (tables, indexes, RLS, profile trigger).
 
-3. **Run the app**
+3. **Migrations (optional)**  
+   For new tables (e.g. `review_entries`): run `supabase/migrations/*.sql` in Supabase SQL Editor, or add `DATABASE_URL` to `.env.local` and run:
+   ```bash
+   npm run db:migrate
+   ```
+
+4. **Run the app**
    ```bash
    npm run dev
    ```

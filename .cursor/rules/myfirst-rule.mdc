@@ -27,3 +27,4 @@ I am a Principal Cloud Architect. Use professional, clean TypeScript. Prefer Nex
 - Files: kebab-case (e.g., `log-entry-form.tsx`).
 - Components: PascalCase (e.g., `LogEntryForm`).
 - Variables: camelCase.
+

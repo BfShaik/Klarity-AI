@@ -1,5 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
+import dynamic from "next/dynamic";
 import { markCertificationEarned } from "./actions";
+
+const AddCertificationForm = dynamic(() => import("./AddCertificationForm"), { ssr: false });
 
 export default async function CertificationsPage() {
   const supabase = await createClient();
@@ -15,8 +18,11 @@ export default async function CertificationsPage() {
   if (catalogError || earnedError) {
     return (
       <div>
-        <h1 className="text-2xl font-bold mb-6 text-white">Certifications</h1>
-        <p className="text-red-400">Error loading data: {catalogError?.message ?? earnedError?.message}</p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+          <h1 className="text-2xl font-bold text-white">Certifications</h1>
+          <AddCertificationForm />
+        </div>
+        <p className="text-red-400">Error loading catalog: {catalogError?.message ?? earnedError?.message}</p>
       </div>
     );
   }
@@ -25,14 +31,42 @@ export default async function CertificationsPage() {
     (earned ?? []).map((e) => e.certification_id).filter(Boolean) as string[]
   );
 
+  const { data: customCerts } = await supabase
+    .from("achievements")
+    .select("id, custom_title, custom_description, earned_at, credential_url")
+    .eq("type", "certification")
+    .is("certification_id", null)
+    .order("earned_at", { ascending: false });
+
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6 text-white">Certifications</h1>
-      {!catalog?.length ? (
-        <p className="text-slate-400">No certification catalog yet. Seed the certification_catalog table in Supabase.
-        </p>
-      ) : (
-        <ul className="space-y-3">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <h1 className="text-2xl font-bold text-white">Certifications</h1>
+        <AddCertificationForm />
+      </div>
+      {customCerts && customCerts.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-lg font-semibold text-slate-300 mb-4">My certifications</h2>
+          <ul className="space-y-3">
+            {customCerts.map((c) => (
+              <li key={c.id} className="card-bg p-4 flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-white">{c.custom_title}</p>
+                  {c.custom_description && (
+                    <p className="text-sm text-slate-400 whitespace-pre-line">{c.custom_description}</p>
+                  )}
+                  <p className="text-xs text-slate-500 mt-1">{c.earned_at}</p>
+                </div>
+                <span className="text-sm text-emerald-400">Earned</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {catalog && catalog.length > 0 && (
+        <div>
+          <h2 className="text-lg font-semibold text-slate-300 mb-4">Certification catalog</h2>
+          <ul className="space-y-3">
           {catalog.map((c) => (
             <li key={c.id} className="card-bg p-4 flex items-center justify-between">
               <div>
@@ -61,6 +95,10 @@ export default async function CertificationsPage() {
             </li>
           ))}
         </ul>
+        </div>
+      )}
+      {(!catalog?.length && (!customCerts || !customCerts.length)) && (
+        <p className="text-slate-400">No certifications yet. Click &quot;Add certification&quot; above to add a custom certification, or seed the certification_catalog table in Supabase for catalog certifications.</p>
       )}
     </div>
   );

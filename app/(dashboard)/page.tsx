@@ -88,7 +88,10 @@ export default async function DashboardPage() {
   ]);
 
   const { data: { user } } = await supabase.auth.getUser();
-  const greeting = user?.email?.split("@")[0] ?? "there";
+  const { data: profile } = user
+    ? await supabase.from("profiles").select("display_name").eq("id", user.id).maybeSingle()
+    : { data: null };
+  const greeting = profile?.display_name?.trim() || user?.email?.split("@")[0] || "there";
 
   const stats = [
     { label: "Achievements", value: counts.achievements, href: "/achievements", icon: Trophy, color: "text-red-400" },

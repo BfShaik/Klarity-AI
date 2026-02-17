@@ -56,15 +56,22 @@ export default function LearningForm() {
         placeholder="URL (optional)"
         className="w-full input-dark"
       />
-      <input
-        name="progress_percent"
-        type="number"
-        min={0}
-        max={100}
-        defaultValue={0}
-        placeholder="Progress %"
-        className="w-24 input-dark"
-      />
+      <div>
+        <label htmlFor="progress_percent" className="block text-sm font-medium text-slate-300 mb-1">
+          Progress %
+        </label>
+        <input
+          id="progress_percent"
+          name="progress_percent"
+          type="number"
+          min={0}
+          max={100}
+          defaultValue={0}
+          placeholder="0"
+          className="w-24 input-dark"
+        />
+        <p className="mt-1 text-xs text-slate-500">0–100, how much of this item you&apos;ve completed</p>
+      </div>
       <button 
         type="submit" 
         disabled={isPending}

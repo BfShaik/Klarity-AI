@@ -35,7 +35,7 @@ export default async function ReviewsPage({
     end = now.toISOString().slice(0, 10);
   }
 
-  const [{ data: plans, error: plansError }, { data: workLogs, error: workLogsError }] = await Promise.all([
+  const [{ data: plans, error: plansError }, { data: workLogs, error: workLogsError }, { data: reviewEntries, error: reviewEntriesError }] = await Promise.all([
     supabase
       .from("daily_plans")
       .select("date, content, notes")
@@ -48,13 +48,20 @@ export default async function ReviewsPage({
       .gte("date", start)
       .lte("date", end)
       .order("date", { ascending: true }),
+    supabase
+      .from("review_entries")
+      .select("id, content, created_at")
+      .eq("user_id", user.id)
+      .eq("period_type", period)
+      .eq("period_start", start)
+      .order("created_at", { ascending: true }),
   ]);
 
-  if (plansError || workLogsError) {
+  if (plansError || workLogsError || reviewEntriesError) {
     return (
       <div>
         <h1 className="text-2xl font-bold mb-6 text-white">Manager review</h1>
-        <p className="text-red-400">Error loading data: {plansError?.message ?? workLogsError?.message}</p>
+        <p className="text-red-400">Error loading data: {plansError?.message ?? workLogsError?.message ?? reviewEntriesError?.message}</p>
       </div>
     );
   }
@@ -66,6 +73,7 @@ export default async function ReviewsPage({
         period={period}
         plans={plans ?? []}
         workLogs={workLogs ?? []}
+        reviewEntries={reviewEntries ?? []}
         start={start}
         end={end}
       />

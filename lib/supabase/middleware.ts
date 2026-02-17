@@ -52,12 +52,13 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/signup") ||
     request.nextUrl.pathname.startsWith("/auth/");
   const isServiceUnavailable = request.nextUrl.pathname === "/service-unavailable";
+  const isApiRoute = request.nextUrl.pathname.startsWith("/api/");
 
   if (isServiceUnavailable) {
     return response;
   }
 
-  if (!user && !isAuthRoute) {
+  if (!user && !isAuthRoute && !isApiRoute) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);

@@ -127,6 +127,16 @@ CREATE TABLE public.work_logs (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- Review entries (custom notes for manager reviews)
+CREATE TABLE public.review_entries (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  content TEXT NOT NULL,
+  period_type TEXT NOT NULL DEFAULT 'weekly',
+  period_start DATE NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
 -- Indexes
 CREATE INDEX idx_achievements_user_id ON public.achievements(user_id);
 CREATE INDEX idx_achievements_earned_at ON public.achievements(earned_at DESC);
@@ -140,6 +150,8 @@ CREATE INDEX idx_daily_plans_user_id ON public.daily_plans(user_id);
 CREATE INDEX idx_daily_plans_user_date ON public.daily_plans(user_id, date);
 CREATE INDEX idx_work_logs_user_id ON public.work_logs(user_id);
 CREATE INDEX idx_work_logs_user_date ON public.work_logs(user_id, date DESC);
+CREATE INDEX idx_review_entries_user_id ON public.review_entries(user_id);
+CREATE INDEX idx_review_entries_period ON public.review_entries(user_id, period_type, period_start);
 
 -- RLS: enable on all tables
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
@@ -152,6 +164,7 @@ ALTER TABLE public.learning_progress ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.goals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.daily_plans ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.work_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.review_entries ENABLE ROW LEVEL SECURITY;
 
 -- Profiles: own row only
 CREATE POLICY "profiles_select_own" ON public.profiles FOR SELECT USING (auth.uid() = id);
@@ -170,6 +183,7 @@ CREATE POLICY "learning_progress_all_own" ON public.learning_progress FOR ALL US
 CREATE POLICY "goals_all_own" ON public.goals FOR ALL USING (auth.uid() = user_id);
 CREATE POLICY "daily_plans_all_own" ON public.daily_plans FOR ALL USING (auth.uid() = user_id);
 CREATE POLICY "work_logs_all_own" ON public.work_logs FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "review_entries_all_own" ON public.review_entries FOR ALL USING (auth.uid() = user_id);
 
 -- Profile creation trigger
 CREATE OR REPLACE FUNCTION public.handle_new_user()
