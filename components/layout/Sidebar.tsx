@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
+  Search,
   Trophy,
   Award,
   BadgeCheck,
@@ -19,6 +20,7 @@ import {
 
 const nav = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/search", label: "Search", icon: Search },
   { href: "/achievements", label: "Achievements", icon: Trophy },
   { href: "/certifications", label: "Certifications", icon: Award },
   { href: "/badges", label: "Badges", icon: BadgeCheck },

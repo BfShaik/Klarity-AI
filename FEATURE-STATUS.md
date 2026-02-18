@@ -191,7 +191,7 @@ Last updated: February 17, 2026.
 
 | Feature | Requirement | Notes |
 |---------|-------------|-------|
-| Unified search UI | FR-10.1 | No search page/component; API only |
+| Unified search UI | FR-10.1 | Done — /search page with input; results for notes and work log; Search in sidebar |
 | Search daily plans | FR-10.1 | API searches notes, work_logs; not plans |
 | Search achievements | FR-10.1 | Not in search API |
 | Semantic search | FR-10.2, FR-10.3 | Keyword (ilike) only; no embeddings/vector |
@@ -245,7 +245,7 @@ Last updated: February 17, 2026.
 - Voice transcription (Whisper/AssemblyAI)
 - AI note refinement (real LLM)
 - AI summary & reports for Reviews
-- Unified search UI
+- ~~Unified search UI~~ Done
 - Semantic search (embeddings)
 - ~~Work log customer link~~ Done
 - ~~Notes filter by customer/date~~ Done
