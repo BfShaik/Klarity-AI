@@ -18,20 +18,34 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const raw = searchParams.get("q")?.trim();
-    if (!raw) return NextResponse.json({ results: { notes: [], workLogs: [], customers: [] } });
+    if (!raw) return NextResponse.json({ results: { notes: [], workLogs: [], customers: [], plans: [], achievements: [] } });
 
     // Escape LIKE special chars: % _ \
     const escape = (s: string) => s.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
     const q = escape(raw);
     const pattern = `%${q}%`;
 
-    // Use separate queries for title/body and name/notes, then combine and dedupe
-    const [notesTitle, notesBody, workLogs, customersName, customersNotes] = await Promise.all([
+    // Use separate queries for title/body, name/notes, plans, achievements, then combine and dedupe
+    const [
+      notesTitle,
+      notesBody,
+      workLogs,
+      customersName,
+      customersNotes,
+      plansContent,
+      plansNotes,
+      achievementsTitle,
+      achievementsDesc,
+    ] = await Promise.all([
       supabase.from("notes").select("id, title, body").ilike("title", pattern),
       supabase.from("notes").select("id, title, body").ilike("body", pattern),
       supabase.from("work_logs").select("id, date, summary").ilike("summary", pattern),
       supabase.from("customers").select("id, name, notes").ilike("name", pattern),
       supabase.from("customers").select("id, name, notes").ilike("notes", pattern),
+      supabase.from("daily_plans").select("id, date, content, notes").ilike("content", pattern),
+      supabase.from("daily_plans").select("id, date, content, notes").ilike("notes", pattern),
+      supabase.from("achievements").select("id, type, custom_title, custom_description, earned_at").ilike("custom_title", pattern),
+      supabase.from("achievements").select("id, type, custom_title, custom_description, earned_at").ilike("custom_description", pattern),
     ]);
 
     // Check for errors
@@ -40,6 +54,10 @@ export async function GET(request: Request) {
     if (workLogs.error) throw workLogs.error;
     if (customersName.error) throw customersName.error;
     if (customersNotes.error) throw customersNotes.error;
+    if (plansContent.error) throw plansContent.error;
+    if (plansNotes.error) throw plansNotes.error;
+    if (achievementsTitle.error) throw achievementsTitle.error;
+    if (achievementsDesc.error) throw achievementsDesc.error;
 
     // Combine and deduplicate notes
     const allNotes = [...(notesTitle.data ?? []), ...(notesBody.data ?? [])];
@@ -53,12 +71,26 @@ export async function GET(request: Request) {
       new Map(allCustomers.map((c) => [c.id, c])).values()
     );
 
+    // Combine and deduplicate plans
+    const allPlans = [...(plansContent.data ?? []), ...(plansNotes.data ?? [])];
+    const uniquePlans = Array.from(
+      new Map(allPlans.map((p) => [p.id, p])).values()
+    );
+
+    // Combine and deduplicate achievements
+    const allAchievements = [...(achievementsTitle.data ?? []), ...(achievementsDesc.data ?? [])];
+    const uniqueAchievements = Array.from(
+      new Map(allAchievements.map((a) => [a.id, a])).values()
+    );
+
     logger.info("Search succeeded", { operation: "search", resource: "search", userId, durationMs: Date.now() - start });
     return NextResponse.json({
       results: {
         notes: uniqueNotes,
         workLogs: workLogs.data ?? [],
         customers: uniqueCustomers,
+        plans: uniquePlans,
+        achievements: uniqueAchievements,
       },
     });
   } catch (error) {

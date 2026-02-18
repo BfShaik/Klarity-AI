@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import dynamic from "next/dynamic";
-import { markBadgeEarned } from "./actions";
+import BadgesDisplay from "./BadgesDisplay";
 
 const AddBadgeForm = dynamic(() => import("./AddBadgeForm"), { ssr: false });
 
@@ -27,7 +27,7 @@ export default async function BadgesPage() {
     );
   }
 
-  const earnedIds = new Set(earned?.map((e) => e.badge_id).filter(Boolean) ?? []);
+  const earnedIds = (earned?.map((e) => e.badge_id).filter(Boolean) ?? []) as string[];
 
   const { data: customBadges } = await supabase
     .from("achievements")
@@ -60,29 +60,12 @@ export default async function BadgesPage() {
         </div>
       )}
       {catalog && catalog.length > 0 && (
-        <div>
-          <h2 className="text-lg font-semibold text-slate-300 mb-4">Badge catalog</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-            {catalog.map((b) => (
-              <div key={b.id} className="card-bg p-4 text-center">
-                {b.image_url && (
-                  <img src={b.image_url} alt={b.name} className="w-16 h-16 mx-auto object-contain" />
-                )}
-                <p className="font-medium mt-2 text-white">{b.name}</p>
-                {earnedIds.has(b.id) ? (
-                  <span className="text-sm text-emerald-400">Earned</span>
-                ) : (
-                  <form action={markBadgeEarned} className="mt-2">
-                    <input type="hidden" name="badge_id" value={b.id} />
-                    <input type="hidden" name="earned_at" value={new Date().toISOString().slice(0, 10)} />
-                    <button type="submit" className="btn-primary text-sm py-1 px-3">
-                      Mark as earned
-                    </button>
-                  </form>
-                )}
-              </div>
-            ))}
-          </div>
+        <div className="mb-8">
+          <BadgesDisplay
+            customBadges={customBadges ?? []}
+            catalog={catalog}
+            earnedIds={earnedIds}
+          />
         </div>
       )}
       {(!catalog?.length && (!customBadges || !customBadges.length)) ? (

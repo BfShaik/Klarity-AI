@@ -14,17 +14,47 @@ export default function NoteEditForm({
   note: Note;
   customers: Customer[];
 }) {
+  const [body, setBody] = useState(note.body ?? "");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [refining, setRefining] = useState(false);
+  const [refineError, setRefineError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
+
+  async function handleRefine() {
+    if (!body.trim()) return;
+    setRefining(true);
+    setRefineError(null);
+    try {
+      const res = await fetch("/api/ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "refine", text: body }),
+      });
+      const data = await res.json();
+      if (res.ok && data.suggested != null) {
+        setBody(data.suggested);
+      } else {
+        setRefineError(data.error || "Failed to refine note");
+      }
+    } catch {
+      setRefineError("Network error. Please try again.");
+    } finally {
+      setRefining(false);
+    }
+  }
 
   async function handleSubmit(formData: FormData) {
     setError(null);
     setSuccess(false);
+    const data = new FormData();
+    data.set("title", formData.get("title") as string);
+    data.set("body", body);
+    data.set("customer_id", formData.get("customer_id") as string);
     startTransition(async () => {
       try {
-        await updateNote(note.id, formData);
+        await updateNote(note.id, data);
         setSuccess(true);
         router.refresh();
         setTimeout(() => setSuccess(false), 3000);
@@ -66,9 +96,23 @@ export default function NoteEditForm({
           id="body"
           name="body"
           rows={8}
-          defaultValue={note.body ?? ""}
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
           className="w-full input-dark"
         />
+        <div className="mt-2 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleRefine}
+            disabled={refining || !body.trim()}
+            className="btn-secondary text-sm py-1.5 px-3 disabled:opacity-50"
+          >
+            {refining ? "Refining…" : "Refine with AI"}
+          </button>
+          {refineError && (
+            <span className="text-sm text-red-400">{refineError}</span>
+          )}
+        </div>
       </div>
       {customers.length > 0 && (
         <div>

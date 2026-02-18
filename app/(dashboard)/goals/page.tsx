@@ -4,10 +4,13 @@ import GoalsTable from "./GoalsTable";
 
 export default async function GoalsPage() {
   const supabase = await createClient();
-  const { data: goals, error } = await supabase
-    .from("goals")
-    .select("id, title, target_date, status")
-    .order("target_date", { ascending: true, nullsFirst: false });
+  const [{ data: goals, error }, { data: certifications }] = await Promise.all([
+    supabase
+      .from("goals")
+      .select("id, title, target_date, status, linked_certification_id")
+      .order("target_date", { ascending: true, nullsFirst: false }),
+    supabase.from("certification_catalog").select("id, name").order("name"),
+  ]);
 
   if (error) {
     return (
@@ -21,9 +24,9 @@ export default async function GoalsPage() {
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6 text-white">Goals</h1>
-      <GoalForm />
+      <GoalForm certifications={certifications ?? []} />
       <div className="mt-6">
-        <GoalsTable goals={goals ?? []} />
+        <GoalsTable goals={goals ?? []} certifications={certifications ?? []} />
       </div>
     </div>
   );

@@ -7,9 +7,11 @@ import { ActionButtons } from "@/components/ui/ActionButtons";
 import { Modal } from "@/components/ui/Modal";
 import { updateGoal, deleteGoal } from "./actions";
 
-type Goal = { id: string; title: string; target_date: string | null; status: string };
+type Goal = { id: string; title: string; target_date: string | null; status: string; linked_certification_id?: string | null };
+type Certification = { id: string; name: string };
 
-export default function GoalsTable({ goals }: { goals: Goal[] }) {
+export default function GoalsTable({ goals, certifications }: { goals: Goal[]; certifications: Certification[] }) {
+  const certMap: Record<string, string> = Object.fromEntries(certifications.map((c) => [c.id, c.name]));
   const [editing, setEditing] = useState<Goal | null>(null);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -29,13 +31,23 @@ export default function GoalsTable({ goals }: { goals: Goal[] }) {
     });
   }
 
-  const rows = goals.map((g) => ({ ...g, id: g.id }));
+  const rows = goals.map((g) => ({ ...g, id: g.id, linked_certification_id: g.linked_certification_id }));
 
   return (
     <>
       <DataGrid
         columns={[
           { key: "title", label: "Title" },
+          ...(certifications.length > 0
+            ? [{
+                key: "linked_certification_id",
+                label: "Certification",
+                render: (row: { linked_certification_id?: string }) => {
+                  const cid = row.linked_certification_id;
+                  return (cid && certMap[cid]) ? certMap[cid] : "—";
+                },
+              } as const]
+            : []),
           {
             key: "target_date",
             label: "Target date",
@@ -88,6 +100,21 @@ export default function GoalsTable({ goals }: { goals: Goal[] }) {
                 <option value="cancelled">Cancelled</option>
               </select>
             </div>
+            {certifications.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Link to certification</label>
+                <select
+                  name="linked_certification_id"
+                  defaultValue={editing.linked_certification_id ?? ""}
+                  className="w-full input-dark"
+                >
+                  <option value="">— None —</option>
+                  {certifications.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="flex gap-2 pt-2">
               <button type="submit" disabled={isPending} className="btn-primary">Save</button>
               <button type="button" onClick={() => { setEditing(null); setError(null); }} className="btn-secondary">Cancel</button>

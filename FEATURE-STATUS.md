@@ -131,7 +131,7 @@ Last updated: February 17, 2026.
 |---------|-------------|-------|
 | OAuth login | FR-1.1 (optional) | Email+password only |
 | Profile edit (display name, avatar) | FR-1.2, FR-11.2 | ✅ Done — Settings has ProfileEditForm |
-| Theme (light/dark) toggle | FR-11.2 | Dark only; no switcher |
+| Theme (light/dark) toggle | FR-11.2 | Done — ThemeToggle in header, data-theme CSS variables |
 | Optional identifiers (Credly/OCI) | FR-1.2 | Schema has field; no UI |
 
 ### Achievements
@@ -139,8 +139,8 @@ Last updated: February 17, 2026.
 | Feature | Requirement | Notes |
 |---------|-------------|-------|
 | Add custom milestone | FR-2.3 | ✅ Done — AddMilestoneForm on Achievements page |
-| Filter achievements by type and date | FR-2.2 | No filter controls |
-| Progress (earned vs total) by level | FR-2.5, FR-3.1 | No progress breakdown |
+| Filter achievements by type and date | FR-2.2 | Done — AchievementFilters with type, from/to date |
+| Progress (earned vs total) by level | FR-2.5, FR-3.1 | Done — AchievementProgress: certifications by level, badges earned/total, milestones count |
 
 ### Certifications & Badges
 
@@ -148,14 +148,14 @@ Last updated: February 17, 2026.
 |---------|-------------|-------|
 | Add custom badge | FR-3.3 | ✅ Done — AddBadgeForm on Badges page |
 | Add custom certification | FR-2.x | ✅ Done — AddCertificationForm on Certifications page |
-| List/grid toggle | FR-3.4 | Fixed layout |
+| List/grid toggle | FR-3.4 | Done — BadgesDisplay has grid/list toggle on Badge catalog |
 
 ### Learning & Goals
 
 | Feature | Requirement | Notes |
 |---------|-------------|-------|
-| Link goal to certification | FR-4.3 | Schema has `linked_certification_id`; no UI |
-| Dashboard: upcoming goals, recent completions | FR-4.4 | Goals chart only |
+| Link goal to certification | FR-4.3 | Done — GoalForm and GoalsTable edit have certification dropdown |
+| Dashboard: upcoming goals, recent completions | FR-4.4 | Done — Upcoming goals and Recent completions sections on dashboard |
 
 ### Notes
 
@@ -192,8 +192,8 @@ Last updated: February 17, 2026.
 | Feature | Requirement | Notes |
 |---------|-------------|-------|
 | Unified search UI | FR-10.1 | Done — /search page with input; results for notes and work log; Search in sidebar |
-| Search daily plans | FR-10.1 | API searches notes, work_logs; not plans |
-| Search achievements | FR-10.1 | Not in search API |
+| Search daily plans | FR-10.1 | Done — /api/search includes daily_plans (content, notes) |
+| Search achievements | FR-10.1 | Done — /api/search includes achievements (custom_title, custom_description) |
 | Semantic search | FR-10.2, FR-10.3 | Keyword (ilike) only; no embeddings/vector |
 
 ### AI
@@ -209,7 +209,7 @@ Last updated: February 17, 2026.
 | Feature | Requirement | Notes |
 |---------|-------------|-------|
 | Profile edit form | FR-11.2 | ✅ Done — Settings page with display name, avatar |
-| Data export (JSON/CSV) | FR-11.3 (Could) | Not implemented |
+| Data export (JSON/CSV) | FR-11.3 (Could) | Done — /api/export, Export section in Settings (JSON full, CSV per table) |
 
 ### Dashboard Period Selector
 

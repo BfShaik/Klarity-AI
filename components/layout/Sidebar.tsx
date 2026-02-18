@@ -42,11 +42,11 @@ export function Sidebar() {
       style={{ backgroundColor: "var(--bg-sidebar)" }}
     >
       {/* Header with logo and collapse toggle */}
-      <div className="flex items-center gap-3 p-4 border-b border-slate-700/50">
+      <div className="flex items-center gap-3 p-4 border-b" style={{ borderColor: "var(--border-dark)" }}>
         <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: "var(--accent-red)" }}>
           <LayoutDashboard className="text-white" size={24} />
         </div>
-        <span className="text-xl font-bold text-white">Klarity AI</span>
+        <span className="text-xl font-bold" style={{ color: "var(--text-primary)" }}>Klarity AI</span>
       </div>
 
       {/* Nav items - red pill active state extends to left edge like HealthApp */}
@@ -57,11 +57,12 @@ export function Sidebar() {
             <Link
               key={href}
               href={href}
-              className={`flex items-center gap-3 py-3 pl-4 pr-4 -ml-4 text-sm font-medium transition-colors ${
+              className={`flex items-center gap-3 py-3 pl-4 pr-4 -ml-4 text-sm font-medium transition-colors rounded-r-lg ${
                 isActive
-                  ? "bg-[var(--accent-red)] text-white rounded-r-lg"
-                  : "text-white hover:bg-white/10 rounded-r-lg"
+                  ? "bg-[var(--accent-red)] text-white"
+                  : "hover:bg-white/10"
               }`}
+              style={!isActive ? { color: "var(--text-primary)" } : undefined}
             >
               <Icon size={20} className="shrink-0" />
               <span>{label}</span>

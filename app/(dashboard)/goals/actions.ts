@@ -17,10 +17,12 @@ export async function createGoal(formData: FormData) {
       const title = (formData.get("title") as string)?.trim();
       if (!title) throw new Error("Title is required.");
       const target_date = (formData.get("target_date") as string) || null;
+      const linkedCertId = (formData.get("linked_certification_id") as string)?.trim() || null;
       const { error } = await supabase.from("goals").insert({
         user_id: user.id,
         title,
         target_date,
+        linked_certification_id: linkedCertId || null,
       });
       if (error) throw error;
       revalidatePath("/goals");
@@ -39,7 +41,14 @@ export async function updateGoal(id: string, formData: FormData) {
       if (!title) throw new Error("Title is required.");
       const target_date = (formData.get("target_date") as string) || null;
       const status = (formData.get("status") as string)?.trim() || "active";
-      const { error } = await supabase.from("goals").update({ title, target_date, status, updated_at: new Date().toISOString() }).eq("id", id).eq("user_id", user.id);
+      const linkedCertId = (formData.get("linked_certification_id") as string)?.trim() || null;
+      const { error } = await supabase.from("goals").update({
+        title,
+        target_date,
+        status,
+        linked_certification_id: linkedCertId || null,
+        updated_at: new Date().toISOString(),
+      }).eq("id", id).eq("user_id", user.id);
       if (error) throw error;
       revalidatePath("/goals");
     }

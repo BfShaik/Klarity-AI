@@ -2,16 +2,20 @@
 
 import { useState, useCallback } from "react";
 import Link from "next/link";
-import { Search as SearchIcon, FileText, ClipboardList, Loader2, Users } from "lucide-react";
+import { Search as SearchIcon, FileText, ClipboardList, Loader2, Users, Calendar, Trophy } from "lucide-react";
 
 type NoteResult = { id: string; title: string; body: string | null };
 type WorkLogResult = { id: string; date: string; summary: string };
 type CustomerResult = { id: string; name: string; notes?: string | null };
+type PlanResult = { id: string; date: string; content?: string | null; notes?: string | null };
+type AchievementResult = { id: string; type: string; custom_title: string | null; custom_description?: string | null; earned_at: string };
 
 type SearchResults = {
   notes: NoteResult[];
   workLogs: WorkLogResult[];
   customers: CustomerResult[];
+  plans?: PlanResult[];
+  achievements?: AchievementResult[];
 };
 
 export default function SearchPage() {
@@ -24,7 +28,7 @@ export default function SearchPage() {
   const doSearch = useCallback(async () => {
     const q = query.trim();
     if (!q) {
-      setResults({ notes: [], workLogs: [], customers: [] });
+      setResults({ notes: [], workLogs: [], customers: [], plans: [], achievements: [] });
       setSearched(true);
       return;
     }
@@ -36,13 +40,13 @@ export default function SearchPage() {
       const data = await res.json();
       if (!res.ok) {
         setError(data.error ?? "Search failed");
-        setResults({ notes: [], workLogs: [], customers: [] });
+        setResults({ notes: [], workLogs: [], customers: [], plans: [], achievements: [] });
         return;
       }
-      setResults(data.results ?? { notes: [], workLogs: [], customers: [] });
+      setResults(data.results ?? { notes: [], workLogs: [], customers: [], plans: [], achievements: [] });
     } catch {
       setError("Search failed. Please try again.");
-      setResults({ notes: [], workLogs: [], customers: [] });
+      setResults({ notes: [], workLogs: [], customers: [], plans: [], achievements: [] });
     } finally {
       setLoading(false);
     }
@@ -53,8 +57,10 @@ export default function SearchPage() {
     doSearch();
   }
 
-  const hasResults = results && (results.notes.length > 0 || results.workLogs.length > 0 || results.customers.length > 0);
-  const noResults = searched && results && results.notes.length === 0 && results.workLogs.length === 0 && results.customers.length === 0 && !loading;
+  const plans = results?.plans ?? [];
+  const achievements = results?.achievements ?? [];
+  const hasResults = results && (results.notes.length > 0 || results.workLogs.length > 0 || results.customers.length > 0 || plans.length > 0 || achievements.length > 0);
+  const noResults = searched && results && results.notes.length === 0 && results.workLogs.length === 0 && results.customers.length === 0 && plans.length === 0 && achievements.length === 0 && !loading;
 
   return (
     <div>
@@ -70,7 +76,7 @@ export default function SearchPage() {
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search notes, work log, and customers…"
+            placeholder="Search notes, work log, customers, plans, achievements…"
             className="w-full pl-12 pr-4 py-3 rounded-xl input-dark text-white placeholder:text-slate-500 focus:ring-2 focus:ring-[var(--accent-red)] focus:border-transparent"
             autoFocus
             disabled={loading}
@@ -149,6 +155,53 @@ export default function SearchPage() {
             </section>
           )}
 
+          {plans.length > 0 && (
+            <section>
+              <h2 className="flex items-center gap-2 text-lg font-semibold text-white mb-4">
+                <Calendar size={20} className="text-blue-400" />
+                Plans ({plans.length})
+              </h2>
+              <div className="space-y-3">
+                {plans.map((p) => (
+                  <Link
+                    key={p.id}
+                    href="/planner"
+                    className="block card-bg p-4 rounded-xl hover:bg-white/5 transition-colors"
+                  >
+                    <div className="text-sm text-slate-400">{p.date}</div>
+                    <div className="text-slate-200 mt-1">
+                      {(p.content || p.notes || "").slice(0, 120)}
+                      {((p.content?.length ?? 0) + (p.notes?.length ?? 0)) > 120 ? "…" : ""}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {achievements.length > 0 && (
+            <section>
+              <h2 className="flex items-center gap-2 text-lg font-semibold text-white mb-4">
+                <Trophy size={20} className="text-amber-400" />
+                Achievements ({achievements.length})
+              </h2>
+              <div className="space-y-3">
+                {achievements.map((a) => (
+                  <Link
+                    key={a.id}
+                    href={`/achievements/${a.id}`}
+                    className="block card-bg p-4 rounded-xl hover:bg-white/5 transition-colors"
+                  >
+                    <div className="font-medium text-red-400 hover:text-red-300">
+                      {a.custom_title || a.type}
+                    </div>
+                    <div className="text-sm text-slate-400">{a.earned_at} · {a.type}</div>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+
           {results!.workLogs.length > 0 && (
             <section>
               <h2 className="flex items-center gap-2 text-lg font-semibold text-white mb-4">
@@ -173,7 +226,7 @@ export default function SearchPage() {
       )}
 
       {!searched && (
-        <p className="text-slate-500 text-sm">Enter a search term to find notes, work log, and customers.</p>
+        <p className="text-slate-500 text-sm">Enter a search term to find notes, work log, customers, plans, and achievements.</p>
       )}
     </div>
   );

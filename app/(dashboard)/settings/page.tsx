@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { updateProfile, setUploadedAvatar } from "./actions";
+import ExportSection from "./ExportSection";
 
 export default async function SettingsPage({
   searchParams,
@@ -114,6 +115,7 @@ export default async function SettingsPage({
             </button>
           </form>
         </div>
+        <ExportSection />
       </div>
     </div>
   );

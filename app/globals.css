@@ -2,8 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
-/* HealthApp-style dark theme */
-:root {
+/* HealthApp-style dark theme (default) */
+:root,
+[data-theme="dark"] {
   --bg-main: #1a1b2c;
   --bg-panel: #202130;
   --bg-card: #282a3a;
@@ -13,6 +14,86 @@
   --accent-red: #ef4444;
   --accent-red-hover: #dc2626;
   --border-dark: #334155;
+}
+
+/* Light theme */
+[data-theme="light"] {
+  --bg-main: #f1f5f9;
+  --bg-panel: #ffffff;
+  --bg-card: #ffffff;
+  --bg-sidebar: #e2e8f0;
+  --text-primary: #0f172a;
+  --text-muted: #64748b;
+  --accent-red: #ef4444;
+  --accent-red-hover: #dc2626;
+  --border-dark: #e2e8f0;
+}
+
+[data-theme="light"] body,
+[data-theme="light"] [data-dashboard] h1 {
+  color: var(--text-primary);
+}
+
+[data-theme="light"] .card-bg,
+[data-theme="light"] .input-dark {
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .input-dark::placeholder {
+  color: #94a3b8 !important;
+}
+
+[data-theme="light"] .page-bg {
+  background-color: var(--bg-main);
+}
+
+/* Light theme: override forced dark inputs */
+[data-theme="light"] .card-bg input,
+[data-theme="light"] .card-bg textarea,
+[data-theme="light"] .card-bg select,
+[data-theme="light"] [data-dashboard] input,
+[data-theme="light"] [data-dashboard] textarea,
+[data-theme="light"] [data-dashboard] select {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+[data-theme="light"] .card-bg input::placeholder,
+[data-theme="light"] .card-bg textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+[data-theme="light"] select.input-dark option {
+  background-color: #ffffff;
+  color: #0f172a;
+}
+
+/* Light theme: DataGrid and tables */
+[data-theme="light"] .card-bg .text-slate-400,
+[data-theme="light"] .card-bg .text-slate-200 {
+  color: #475569 !important;
+}
+
+[data-theme="light"] .btn-secondary:hover:not(:disabled) {
+  background-color: #e2e8f0;
+}
+
+/* Light theme: DataGrid header and body text */
+[data-theme="light"] [data-dashboard] .card-bg th {
+  color: #475569 !important;
+}
+
+[data-theme="light"] [data-dashboard] .card-bg td {
+  color: #334155 !important;
+}
+
+/* Light theme: empty state and helpers */
+[data-theme="light"] .card-bg .text-slate-400,
+[data-theme="light"] .card-bg p.text-slate-400 {
+  color: #64748b !important;
 }
 
 @layer base {

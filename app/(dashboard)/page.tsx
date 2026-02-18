@@ -106,9 +106,21 @@ export default async function DashboardPage({
     params.period === "month" || params.period === "all" ? params.period : "week";
 
   const supabase = await createClient();
-  const [counts, workLogChartData] = await Promise.all([
+  const [counts, workLogChartData, upcomingGoals, recentCompletions] = await Promise.all([
     getCounts(supabase),
     getWorkLogChartData(supabase, period),
+    supabase
+      .from("goals")
+      .select("id, title, target_date")
+      .eq("status", "active")
+      .order("target_date", { ascending: true, nullsFirst: false })
+      .limit(5),
+    supabase
+      .from("goals")
+      .select("id, title, target_date, completed_at")
+      .eq("status", "completed")
+      .order("completed_at", { ascending: false })
+      .limit(5),
   ]);
 
   const { data: { user } } = await supabase.auth.getUser();
@@ -168,6 +180,66 @@ export default async function DashboardPage({
           <BookOpen size={24} />
           <span>Learning</span>
         </Link>
+      </div>
+
+      {/* Upcoming goals & Recent completions */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <div className="card-bg p-5 rounded-xl">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-white">Upcoming goals</h2>
+            <Link href="/goals" className="text-sm text-slate-400 hover:text-white transition-colors">
+              View all
+            </Link>
+          </div>
+          {upcomingGoals.data && upcomingGoals.data.length > 0 ? (
+            <ul className="space-y-2">
+              {upcomingGoals.data.map((g) => (
+                <li key={g.id}>
+                  <Link
+                    href="/goals"
+                    className="block p-2 rounded-lg hover:bg-white/5 transition-colors text-slate-200"
+                  >
+                    <span className="font-medium">{g.title}</span>
+                    {g.target_date && (
+                      <span className="text-slate-500 text-sm ml-2">— {g.target_date}</span>
+                    )}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-slate-500 text-sm">No upcoming goals. Add one on the Goals page.</p>
+          )}
+        </div>
+        <div className="card-bg p-5 rounded-xl">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-white">Recent completions</h2>
+            <Link href="/goals" className="text-sm text-slate-400 hover:text-white transition-colors">
+              View all
+            </Link>
+          </div>
+          {recentCompletions.data && recentCompletions.data.length > 0 ? (
+            <ul className="space-y-2">
+              {recentCompletions.data.map((g) => (
+                <li key={g.id}>
+                  <Link
+                    href="/goals"
+                    className="block p-2 rounded-lg hover:bg-white/5 transition-colors text-slate-200"
+                  >
+                    <span className="font-medium">{g.title}</span>
+                    {g.completed_at && (
+                      <span className="text-emerald-500/80 text-sm ml-2">
+                        ✓ {new Date(g.completed_at).toLocaleDateString()}
+                      </span>
+                    )}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-slate-500 text-sm">No recently completed goals yet.</p>
+          )}
+        </div>
       </div>
 
       {/* Summary cards with icons */}

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { addReviewEntry } from "./actions";
 
 type Plan = { date: string; content: string | null; notes: string | null };
@@ -24,11 +24,36 @@ export default function ReviewSummary({
   end: string;
 }) {
   const [isPending, startTransition] = useTransition();
+  const [aiSummary, setAiSummary] = useState("");
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
 
   function handleAddReview(formData: FormData) {
     startTransition(async () => {
       await addReviewEntry(formData);
     });
+  }
+
+  async function handleGenerateSummary() {
+    setSummaryLoading(true);
+    setSummaryError(null);
+    try {
+      const res = await fetch("/api/ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "summarize", plans, workLogs, start, end }),
+      });
+      const data = await res.json();
+      if (res.ok && data.summary != null) {
+        setAiSummary(data.summary);
+      } else {
+        setSummaryError(data.error || "Failed to generate summary");
+      }
+    } catch {
+      setSummaryError("Network error. Please try again.");
+    } finally {
+      setSummaryLoading(false);
+    }
   }
   const periods = [
     { value: "weekly", label: "Weekly" },
@@ -56,6 +81,45 @@ export default function ReviewSummary({
         {start} – {end}
       </p>
       <div className="card-bg p-5 rounded-xl space-y-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={handleGenerateSummary}
+            disabled={summaryLoading}
+            className="btn-secondary text-sm py-2 px-4 disabled:opacity-50"
+          >
+            {summaryLoading ? "Generating…" : "Generate AI summary"}
+          </button>
+          {summaryError && <span className="text-sm text-red-400">{summaryError}</span>}
+        </div>
+        {aiSummary && (
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-1">AI summary</label>
+            <textarea
+              value={aiSummary}
+              onChange={(e) => setAiSummary(e.target.value)}
+              rows={6}
+              className="w-full input-dark mb-2"
+              placeholder="Summary will appear here…"
+            />
+            <div className="flex gap-2 mt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const input = document.getElementById("review-content-input") as HTMLInputElement;
+                  if (input) {
+                    input.value = aiSummary;
+                    input.focus();
+                  }
+                }}
+                className="btn-secondary text-sm py-1.5 px-3"
+              >
+                Use as review
+              </button>
+              <p className="text-xs text-slate-400 self-center">or copy into the field below.</p>
+            </div>
+          </div>
+        )}
         <form action={handleAddReview} className="flex gap-2">
           <input
             type="hidden"
@@ -68,6 +132,7 @@ export default function ReviewSummary({
             value={start}
           />
           <input
+            id="review-content-input"
             name="content"
             placeholder="Add a review note (accomplishments, talking points...)"
             className="flex-1 input-dark"

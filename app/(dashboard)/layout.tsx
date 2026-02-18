@@ -7,11 +7,11 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen page-bg" style={{ backgroundColor: "#1a1b2c" }}>
+    <div className="flex min-h-screen page-bg" style={{ backgroundColor: "var(--bg-main)" }}>
       <Sidebar />
-      <div className="flex-1 flex flex-col" style={{ backgroundColor: "#1a1b2c" }}>
+      <div className="flex-1 flex flex-col" style={{ backgroundColor: "var(--bg-main)" }}>
         <Header />
-        <main className="flex-1 p-6 text-slate-100" style={{ backgroundColor: "#1a1b2c", color: "#f8fafc" }} data-dashboard>{children}</main>
+        <main className="flex-1 p-6" style={{ backgroundColor: "var(--bg-main)", color: "var(--text-primary)" }} data-dashboard>{children}</main>
       </div>
     </div>
   );

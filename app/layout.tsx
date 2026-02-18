@@ -17,10 +17,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning style={{ backgroundColor: "#1a1b2c" }}>
+    <html lang="en" suppressHydrationWarning data-theme="dark">
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){var t=localStorage.getItem('klarity-theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t})();`,
+          }}
+        />
+      </head>
       <body
         className="font-sans antialiased min-h-screen"
-        style={{ backgroundColor: "#1a1b2c", color: "#f8fafc", fontFamily: "ui-sans-serif, system-ui, Inter, sans-serif" }}
+        style={{ backgroundColor: "var(--bg-main)", color: "var(--text-primary)", fontFamily: "ui-sans-serif, system-ui, Inter, sans-serif" }}
         suppressHydrationWarning
       >
         {children}

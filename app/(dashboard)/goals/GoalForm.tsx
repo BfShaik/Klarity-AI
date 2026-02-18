@@ -3,7 +3,9 @@
 import { useState, useTransition } from "react";
 import { createGoal } from "./actions";
 
-export default function GoalForm() {
+type Certification = { id: string; name: string };
+
+export default function GoalForm({ certifications }: { certifications: Certification[] }) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -50,6 +52,17 @@ export default function GoalForm() {
         placeholder="Target date"
         className="w-full input-dark"
       />
+      {certifications.length > 0 && (
+        <div>
+          <label className="block text-sm font-medium text-slate-300 mb-1">Link to certification (optional)</label>
+          <select name="linked_certification_id" className="w-full input-dark">
+            <option value="">— None —</option>
+            {certifications.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
       <button 
         type="submit" 
         disabled={isPending}

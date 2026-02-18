@@ -1,7 +1,11 @@
 /**
  * Centralized structured logger. Use across the app for consistency.
  * In development: human-readable; in production: JSON for log aggregation.
+ * Writes errors and warnings to logs/error.log for debugging.
  */
+
+import { appendFile, mkdir } from "fs/promises";
+import { join } from "path";
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
@@ -15,6 +19,7 @@ export type LogContext = {
 };
 
 const isDev = process.env.NODE_ENV !== "production";
+const LOG_DIR = join(process.cwd(), "logs");
 
 function formatMessage(level: LogLevel, message: string, context?: LogContext): string {
   const timestamp = new Date().toISOString();
@@ -30,14 +35,25 @@ function formatMessage(level: LogLevel, message: string, context?: LogContext): 
   });
 }
 
+async function writeToLogFile(out: string): Promise<void> {
+  try {
+    await mkdir(LOG_DIR, { recursive: true });
+    await appendFile(join(LOG_DIR, "error.log"), out + "\n");
+  } catch {
+    // Ignore file write failures (e.g. permissions, disk full)
+  }
+}
+
 function log(level: LogLevel, message: string, context?: LogContext): void {
   const out = formatMessage(level, message, context);
   switch (level) {
     case "error":
       console.error(out);
+      writeToLogFile(out);
       break;
     case "warn":
       console.warn(out);
+      writeToLogFile(out);
       break;
     case "debug":
       if (isDev) console.debug(out);
