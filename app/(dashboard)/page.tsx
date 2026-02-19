@@ -13,11 +13,18 @@ import {
   BarChart3,
   TrendingUp,
 } from "lucide-react";
-import {
-  PeriodSelector,
-  WorkLogActivityChart,
-  GoalsProgressChart,
-} from "./components/DashboardClient";
+import dynamic from "next/dynamic";
+import { PeriodSelector } from "./components/DashboardClient";
+
+const WorkLogActivityChart = dynamic(
+  () => import("./components/DashboardCharts").then((m) => ({ default: m.WorkLogActivityChart })),
+  { ssr: true, loading: () => <div className="h-[180px] bg-white/5 animate-pulse rounded" /> }
+);
+
+const GoalsProgressChart = dynamic(
+  () => import("./components/DashboardCharts").then((m) => ({ default: m.GoalsProgressChart })),
+  { ssr: true, loading: () => <div className="h-[180px] bg-white/5 animate-pulse rounded" /> }
+);
 
 async function getCounts(supabase: Awaited<ReturnType<typeof createClient>>) {
   try {
@@ -28,11 +35,11 @@ async function getCounts(supabase: Awaited<ReturnType<typeof createClient>>) {
       { count: notesCount },
       { count: workLogsCount },
     ] = await Promise.all([
-      supabase.from("achievements").select("*", { count: "exact", head: true }),
-      supabase.from("goals").select("*", { count: "exact", head: true }).eq("status", "active"),
-      supabase.from("goals").select("*", { count: "exact", head: true }).eq("status", "completed"),
-      supabase.from("notes").select("*", { count: "exact", head: true }),
-      supabase.from("work_logs").select("*", { count: "exact", head: true }),
+      supabase.from("achievements").select("id", { count: "exact", head: true }),
+      supabase.from("goals").select("id", { count: "exact", head: true }).eq("status", "active"),
+      supabase.from("goals").select("id", { count: "exact", head: true }).eq("status", "completed"),
+      supabase.from("notes").select("id", { count: "exact", head: true }),
+      supabase.from("work_logs").select("id", { count: "exact", head: true }),
     ]);
     return {
       achievements: achievementsCount ?? 0,
@@ -106,7 +113,13 @@ export default async function DashboardPage({
     params.period === "month" || params.period === "all" ? params.period : "week";
 
   const supabase = await createClient();
-  const [counts, workLogChartData, upcomingGoals, recentCompletions] = await Promise.all([
+  const [
+    counts,
+    workLogChartData,
+    upcomingGoals,
+    recentCompletions,
+    { data: { user } },
+  ] = await Promise.all([
     getCounts(supabase),
     getWorkLogChartData(supabase, period),
     supabase
@@ -121,9 +134,9 @@ export default async function DashboardPage({
       .eq("status", "completed")
       .order("completed_at", { ascending: false })
       .limit(5),
+    supabase.auth.getUser(),
   ]);
 
-  const { data: { user } } = await supabase.auth.getUser();
   const { data: profile } = user
     ? await supabase.from("profiles").select("display_name").eq("id", user.id).maybeSingle()
     : { data: null };

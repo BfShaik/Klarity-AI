@@ -13,65 +13,106 @@ export default function VoiceRecorder({
   const [isSupported, setIsSupported] = useState(false);
   const chunksRef = useRef<Blob[]>([]);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
     setIsSupported(
       typeof window !== "undefined" &&
         typeof navigator !== "undefined" &&
-        !!navigator.mediaDevices?.getUserMedia
+        !!navigator.mediaDevices?.getUserMedia &&
+        typeof MediaRecorder !== "undefined" &&
+        window.isSecureContext
     );
   }, []);
 
   const startRecording = useCallback(async () => {
     if (!isSupported) {
-      setError("Voice recording is not supported in this browser.");
+      setError(
+        window.isSecureContext
+          ? "Voice recording is not supported in this browser."
+          : "Voice recording requires HTTPS (or localhost)."
+      );
       return;
     }
     setError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream);
+      streamRef.current = stream;
+      const mr = new MediaRecorder(stream, { mimeType: MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : undefined });
       chunksRef.current = [];
       mr.ondataavailable = (e) => {
         if (e.data.size > 0) chunksRef.current.push(e.data);
       };
       mr.onstop = () => {
         stream.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
       };
-      mr.start();
+      mr.start(100);
       mediaRecorderRef.current = mr;
       setRecording(true);
     } catch (err) {
       setError("Microphone access denied or unavailable.");
     }
-  }, []);
+  }, [isSupported]);
 
   const stopRecording = useCallback(async () => {
     const mr = mediaRecorderRef.current;
     if (!mr || mr.state === "inactive") return;
-    mr.stop();
     setRecording(false);
     setProcessing(true);
     setError(null);
+    const stream = streamRef.current;
+    const blob = await new Promise<Blob>((resolve) => {
+      const chunks: Blob[] = [];
+      mr.ondataavailable = (e) => {
+        if (e.data.size > 0) chunks.push(e.data);
+      };
+      mr.onstop = () => {
+        if (stream) stream.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+        resolve(new Blob(chunks, { type: mr.mimeType || "audio/webm" }));
+      };
+      mr.stop();
+    });
     try {
-      const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+      if (blob.size === 0) {
+        setError("No audio recorded. Try speaking louder or check your microphone.");
+        return;
+      }
       const formData = new FormData();
       formData.append("file", blob, "recording.webm");
-      const res = await fetch("/api/transcribe", { method: "POST", body: formData });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
+      const res = await fetch("/api/transcribe", {
+        method: "POST",
+        body: formData,
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
       const data = await res.json();
       if (data.transcript) onTranscript(data.transcript);
       else if (data.error) setError(data.error);
-    } catch {
-      setError("Transcription failed. Paste or type your note instead.");
+      else setError("Transcription failed. Paste or type your note instead.");
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") {
+        setError("Request timed out (API may be overloaded). Try again in a minute.");
+      } else {
+        setError("Transcription failed. Paste or type your note instead.");
+      }
+    } finally {
+      setProcessing(false);
     }
-    setProcessing(false);
   }, [onTranscript]);
 
   if (!isSupported) {
     return (
       <div className="space-y-2">
         <p className="text-sm font-medium text-slate-300">Voice note</p>
-        <p className="text-sm text-slate-400">Voice recording is not available in this browser.</p>
+        <p className="text-sm text-slate-400">
+          {typeof window !== "undefined" && !window.isSecureContext
+            ? "Voice recording requires HTTPS (or use localhost)."
+            : "Voice recording is not available in this browser."}
+        </p>
       </div>
     );
   }

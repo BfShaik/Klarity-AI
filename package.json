@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "dev:restart": "kill-port 3000 3001 3002 3003 3004 3005 && next dev",
+    "dev": "next dev -p 3000",
+    "dev:restart": "kill-port 3000 3001 3002 3003 3004 3005 && rm -rf .next && next dev -p 3000",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -13,6 +13,7 @@
     "test:gemini": "node scripts/test-gemini.mjs"
   },
   "dependencies": {
+    "@google-cloud/vertexai": "^1.10.0",
     "@google/genai": "^1.41.0",
     "@supabase/ssr": "^0.5.0",
     "@supabase/supabase-js": "^2.45.0",

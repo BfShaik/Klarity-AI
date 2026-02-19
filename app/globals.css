@@ -98,12 +98,12 @@
 
 @layer base {
   html {
-    background-color: var(--bg-main);
+    background-color: var(--bg-main, #1a1b2c);
     -webkit-text-size-adjust: 100%;
   }
   body {
     font-family: ui-sans-serif, system-ui, "Inter", sans-serif;
-    background-color: var(--bg-main);
+    background-color: var(--bg-main, #1a1b2c) !important;
     min-height: 100vh;
     @apply antialiased text-slate-100;
   }

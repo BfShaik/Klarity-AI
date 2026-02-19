@@ -26,8 +26,8 @@ export default function RootLayout({
         />
       </head>
       <body
-        className="font-sans antialiased min-h-screen"
-        style={{ backgroundColor: "var(--bg-main)", color: "var(--text-primary)", fontFamily: "ui-sans-serif, system-ui, Inter, sans-serif" }}
+        className="font-sans antialiased min-h-screen bg-[#1a1b2c] text-slate-100"
+        style={{ backgroundColor: "var(--bg-main, #1a1b2c)", color: "var(--text-primary, #f8fafc)", fontFamily: "ui-sans-serif, system-ui, Inter, sans-serif" }}
         suppressHydrationWarning
       >
         {children}

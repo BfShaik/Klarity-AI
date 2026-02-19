@@ -3,6 +3,9 @@
 import { useState, useTransition } from "react";
 import VoiceRecorder from "@/components/voice/VoiceRecorder";
 
+// Voice recording on hold; set to true to re-enable
+const VOICE_RECORDING_ENABLED = false;
+
 type Customer = { id: string; name: string };
 
 export default function NoteForm({
@@ -71,7 +74,9 @@ export default function NoteForm({
           className="w-full input-dark"
         />
       </div>
-      <VoiceRecorder onTranscript={(text) => setBody((prev) => (prev ? prev + "\n\n" + text : text))} />
+      {VOICE_RECORDING_ENABLED && (
+        <VoiceRecorder onTranscript={(text) => setBody((prev) => (prev ? prev + "\n\n" + text : text))} />
+      )}
       <div>
         <label htmlFor="body" className="block text-sm font-medium text-slate-300 mb-1">
           Body
