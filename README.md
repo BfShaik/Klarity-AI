@@ -7,7 +7,7 @@ Personal work ledger: track your work, daily planner, work log, notes, achieveme
 ## Features
 
 - **Dashboard** — Overview with action buttons (Add work log, New note, Open planner, Learning), summary cards (achievements, goals, notes, work log), and charts (work log activity, goals progress). Period selector (Week / Month / All).
-- **Auth** — Sign up, sign in, sign out; protected routes; profile creation via trigger; service-unavailable handling when Supabase is unreachable.
+- **Auth** — Sign up, sign in (email/password + OAuth Google/GitHub), sign out; protected routes; profile creation via trigger; service-unavailable handling when Supabase is unreachable.
 - **Achievements** — List, detail view, and edit/delete for certifications, badges, and custom milestones.
 - **Certifications** — Add custom certifications or pick from catalog; mark as earned.
 - **Badges** — Add custom badges or pick from catalog; mark as earned.
@@ -19,7 +19,8 @@ Personal work ledger: track your work, daily planner, work log, notes, achieveme
 - **Work log** — Add, edit, delete entries (date, summary, optional minutes); list with DataGrid.
 - **Reviews** — Manager review with period selector (Weekly / Monthly / Quarterly / Annual); shows plans + work log; add custom review notes.
 - **Settings** — Profile/settings page.
-- **APIs** — `/api/planner`, `/api/work-logs`, `/api/transcribe`, `/api/ai`, `/api/search`.
+- **APIs** — `/api/planner`, `/api/work-logs`, `/api/transcribe`, `/api/ai`, `/api/search`, `/api/chat`.
+- **Chat assistant** — Floating chat button; add achievements, work logs, notes, or search via natural language (uses GOOGLE_AI_API_KEY).
 
 ## Tech Stack
 
@@ -50,6 +51,7 @@ Personal work ledger: track your work, daily planner, work log, notes, achieveme
      NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
      ```
    - In Supabase SQL Editor, run the full script in **`supabase/schema.sql`** (tables, indexes, RLS, profile trigger).
+   - **OAuth (optional)** — For Google/GitHub sign-in: [docs/OAUTH-SETUP.md](docs/OAUTH-SETUP.md) has step-by-step instructions. Authentication → Providers → enable Google and/or GitHub; add Client ID and Secret from each provider.
 
 3. **Migrations (optional)**  
    For new tables (e.g. `review_entries`): run `supabase/migrations/*.sql` in Supabase SQL Editor, or add `DATABASE_URL` to `.env.local` and run:

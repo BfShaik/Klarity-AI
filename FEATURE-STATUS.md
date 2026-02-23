@@ -1,7 +1,7 @@
 # Klarity AI — Feature Status
 
 Status of features vs. requirements in [REQUIREMENTS.md](REQUIREMENTS.md) and [PLAN.md](PLAN.md).  
-Last updated: February 17, 2026.
+Last updated: February 8, 2026.
 
 ---
 
@@ -12,6 +12,7 @@ Last updated: February 17, 2026.
 | Feature | Status | Notes |
 |---------|--------|-------|
 | Sign up / Login (email + password) | Done | Supabase Auth |
+| OAuth (Google, GitHub) | Done | Supabase Auth providers |
 | Auth callback & middleware | Done | Protects dashboard routes |
 | Profile creation on signup | Done | Trigger in schema |
 | Redirect unauthenticated to login | Done | Middleware |
@@ -74,7 +75,7 @@ Last updated: February 17, 2026.
 | View note detail | Done | `/notes/[id]` |
 | Edit note | Done | NoteEditForm |
 | Voice recorder component | Done | VoiceRecorder, MediaRecorder |
-| AI Refine button | Done | Calls `/api/ai` (refine action) |
+| AI Refine button | Done | Calls `/api/ai` refine — Gemini LLM |
 
 ### Planner
 
@@ -102,6 +103,14 @@ Last updated: February 17, 2026.
 | Aggregated plans + work log | Done | Date range query |
 | Copy-friendly summary | Done | Text output with dates |
 | Add custom review notes | Done | Add review entry for period; stored in review_entries |
+| AI-assisted summary | Done | ReviewSummary calls `/api/ai` summarize — Gemini LLM |
+
+### Voice to Text
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Server-side transcription | Done | `/api/transcribe` uses OpenAI Whisper |
+| Save transcript as note body from voice | Done | VoiceRecorder → transcribe → body (currently disabled via VOICE_RECORDING_ENABLED flag) |
 
 ### Search
 
@@ -129,7 +138,7 @@ Last updated: February 17, 2026.
 
 | Feature | Requirement | Notes |
 |---------|-------------|-------|
-| OAuth login | FR-1.1 (optional) | Email+password only |
+| OAuth login | FR-1.1 (optional) | Done — Google and GitHub via Supabase Auth |
 | Profile edit (display name, avatar) | FR-1.2, FR-11.2 | ✅ Done — Settings has ProfileEditForm |
 | Theme (light/dark) toggle | FR-11.2 | Done — ThemeToggle in header, data-theme CSS variables |
 | Optional identifiers (Credly/OCI) | FR-1.2 | Schema has field; no UI |
@@ -162,15 +171,16 @@ Last updated: February 17, 2026.
 | Feature | Requirement | Notes |
 |---------|-------------|-------|
 | Filter notes by customer and date | FR-5.4 | Done — NotesFilters with customer dropdown, from/to date range |
-| AI note creation & approval flow | FR-5.6 | Refine is placeholder; no LLM integration |
-| Store recording + audio_url | FR-6.3 | Transcribe returns placeholder |
+| AI note refinement (LLM) | FR-5.6 | Done — Gemini via `/api/ai` refine |
+| Store recording + audio_url | FR-6.3 | Transcript saved; audio upload to Supabase Storage not implemented |
+| AI note creation & approval flow | FR-5.6 | Refine done; full create-from-input approval flow optional |
 
 ### Voice to Text
 
 | Feature | Requirement | Notes |
 |---------|-------------|-------|
-| Server-side transcription | FR-6.2 | `/api/transcribe` returns placeholder; no Whisper/AssemblyAI |
-| Save transcript as note body from voice | FR-6.2 | Recorder exists; transcribe stub |
+| Server-side transcription | FR-6.2 | Done — OpenAI Whisper in `/api/transcribe` |
+| Save transcript as note body from voice | FR-6.2 | Done — VoiceRecorder → transcribe → body (voice UI disabled via flag) |
 | Store recording (Supabase Storage) | FR-6.3 | Not implemented |
 
 ### Work Log
@@ -184,8 +194,7 @@ Last updated: February 17, 2026.
 
 | Feature | Requirement | Notes |
 |---------|-------------|-------|
-| AI summary & reports | FR-9.4 | `/api/ai` summarize action returns empty; no LLM |
-| AI-assisted summary on Reviews page | FR-9.4 | No AI integration |
+| AI summary & reports | FR-9.4 | Done — Gemini via `/api/ai` summarize; wired in ReviewSummary |
 
 ### Search
 
@@ -200,9 +209,9 @@ Last updated: February 17, 2026.
 
 | Feature | Requirement | Notes |
 |---------|-------------|-------|
-| AI note refinement (LLM) | FR-5.6 | `/api/ai` refine returns placeholder text |
-| AI summary generation | FR-9.4 | Stub returns empty |
-| AI report generation | FR-9.4 | Not implemented |
+| AI note refinement (LLM) | FR-5.6 | Done — Gemini via `/api/ai` refine |
+| AI summary generation | FR-9.4 | Done — Gemini via `/api/ai` summarize |
+| AI report generation | FR-9.4 | Not implemented — formal report format |
 
 ### Settings & Export
 
@@ -223,29 +232,29 @@ Last updated: February 17, 2026.
 
 | Category | Completed | Pending |
 |----------|-----------|---------|
-| Auth & Profile | 5 | 4 |
-| Dashboard | 4 | 1 |
-| Achievements | 7 | 3 |
-| Certifications & Badges | 7 | 1 |
-| Learning & Goals | 5 | 2 |
+| Auth & Profile | 6 | 1 |
+| Dashboard | 4 | 0 |
+| Achievements | 7 | 0 |
+| Certifications & Badges | 7 | 0 |
+| Learning & Goals | 5 | 0 |
 | Customers | 3 | 0 |
-| Notes | 6 | 3 |
-| Voice to Text | 1 | 3 |
+| Notes | 6 | 2 |
+| Voice to Text | 2 | 1 |
 | Planner | 5 | 0 |
-| Work Log | 4 | 1 |
-| Manager Review | 4 | 1 |
-| Search | 2 | 4 |
-| AI | 0 | 4 |
-| Settings | 1 | 1 |
+| Work Log | 4 | 0 |
+| Manager Review | 5 | 0 |
+| Search | 2 | 1 |
+| AI | 2 | 1 |
+| Settings | 2 | 0 |
 
 **High-priority pending (Must):**
 
 - ~~Profile edit (display name, avatar)~~ ✅ Done
 - ~~Add custom milestone~~ ✅ Done
-- Voice transcription (Whisper/AssemblyAI)
-- AI note refinement (real LLM)
-- AI summary & reports for Reviews
-- ~~Unified search UI~~ Done
+- ~~Voice transcription (Whisper)~~ ✅ Done
+- ~~AI note refinement (real LLM)~~ ✅ Done
+- ~~AI summary & reports for Reviews~~ ✅ Done
+- ~~Unified search UI~~ ✅ Done
 - Semantic search (embeddings)
-- ~~Work log customer link~~ Done
-- ~~Notes filter by customer/date~~ Done
+- ~~Work log customer link~~ ✅ Done
+- ~~Notes filter by customer/date~~ ✅ Done
