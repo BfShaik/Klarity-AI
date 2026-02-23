@@ -20,7 +20,7 @@ Personal work ledger: track your work, daily planner, work log, notes, achieveme
 - **Reviews** — Manager review with period selector (Weekly / Monthly / Quarterly / Annual); shows plans + work log; add custom review notes.
 - **Settings** — Profile/settings page.
 - **APIs** — `/api/planner`, `/api/work-logs`, `/api/transcribe`, `/api/ai`, `/api/search`, `/api/chat`.
-- **Chat assistant** — Floating chat button; add achievements, work logs, notes, or search via natural language (uses GOOGLE_AI_API_KEY).
+- **AI Chat Assistant** — Floating chat button on dashboard; add achievements, work logs, notes, or search via natural language. Powered by Gemini; uses `GOOGLE_AI_API_KEY`.
 
 ## Tech Stack
 
@@ -69,6 +69,14 @@ Personal work ledger: track your work, daily planner, work log, notes, achieveme
    ```bash
    npm run dev:restart
    ```
+
+5. **AI Chat Assistant (optional)**  
+   Add `GOOGLE_AI_API_KEY` to `.env.local` to enable the floating chat bot. Get a key from [Google AI Studio](https://aistudio.google.com/apikey). The assistant uses Gemini to:
+   - **Add achievements** — e.g. "Add achievement: AWS Certified, earned Jan 15"
+   - **Add work logs** — e.g. "Log for today: Met with vendor about migration"
+   - **Add notes** — e.g. "Add note: Medallia follow-up"
+   - **Search** — e.g. "Search for medallia" or "Find Oracle notes"  
+   Results are formatted in markdown with bullet lists. Run `npm run test:chat` to test the chat API.
 
 ## UI & Design
 
