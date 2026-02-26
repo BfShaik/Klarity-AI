@@ -14,6 +14,7 @@ const SYSTEM_PROMPT = `You are a helpful assistant for Klarity AI, a personal wo
 - Add work log entries (what they did on a date)
 - Add notes (meeting notes, ideas)
 - Search across their data (notes, work logs, customers, plans, achievements)
+- List all notes (use list_notes when user asks to "list all notes", "show my notes", "what notes do I have", etc.)
 
 When the user asks to add something, use the appropriate tool. Extract dates from natural language (e.g. "today", "yesterday", "Jan 15" -> YYYY-MM-DD).
 Today's date for reference: ${today}
@@ -77,13 +78,24 @@ const TOOL_DECLARATIONS = [
   },
   {
     name: "search",
-    description: "Search across notes, work logs, customers, plans, and achievements",
+    description: "Search by keyword across notes, work logs, customers, plans, and achievements. Use when user wants to find items containing a specific word or phrase.",
     parameters: {
       type: Type.OBJECT,
       properties: {
-        query: { type: Type.STRING, description: "Search query" },
+        query: { type: Type.STRING, description: "Search query (keyword to match)" },
       },
       required: ["query"],
+    },
+  },
+  {
+    name: "list_notes",
+    description: "List ALL notes for the user. Use when user asks to list notes, show all notes, what notes do I have, display my notes, etc. Do NOT use search for this.",
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        limit: { type: Type.NUMBER, description: "Max number of notes to return (default 50)" },
+      },
+      required: [],
     },
   },
 ];
@@ -210,6 +222,27 @@ export async function POST(request: Request) {
             searchOnlyWithFormattedResult = lines.length
               ? `Here's what I found for **"${q}"**:\n\n${formattedSections.join("\n\n")}`
               : `No results found for **"${q}"**.`;
+          } else if (name === "list_notes") {
+            const limit = Math.min(Math.max(1, Number(args.limit) || 50), 100);
+            const { data: notesData } = await supabase
+              .from("notes")
+              .select("id, title, body, updated_at")
+              .order("updated_at", { ascending: false })
+              .limit(limit);
+            const notes = notesData ?? [];
+            const lines: string[] = [];
+            if (notes.length) {
+              lines.push(`Notes:\n${notes.map((n) => `- ${n.title}${n.body ? ` — ${n.body.slice(0, 60)}${n.body.length > 60 ? "…" : ""}` : ""}`).join("\n")}`);
+            }
+            result = lines.length ? lines.join("\n\n") : "No notes found.";
+            const formattedSections = lines.map((line) => {
+              const [header, ...rest] = line.split("\n");
+              const boldHeader = header.replace(/:\s*$/, "");
+              return `**${boldHeader}**\n${rest.join("\n")}`;
+            });
+            searchOnlyWithFormattedResult = notes.length
+              ? `Here are your **${notes.length}** note(s):\n\n${formattedSections.join("\n\n")}`
+              : "You have no notes yet.";
           } else {
             result = `Unknown tool: ${name}`;
           }
@@ -220,7 +253,8 @@ export async function POST(request: Request) {
         functionResponses.push({ functionResponse: { name, response: { result } } });
       }
 
-      if (searchOnlyWithFormattedResult !== null && functionCalls.length === 1 && functionCalls[0]?.name === "search") {
+      const singleTool = functionCalls.length === 1 && functionCalls[0]?.name;
+      if (searchOnlyWithFormattedResult !== null && singleTool && (singleTool === "search" || singleTool === "list_notes")) {
         const content = searchOnlyWithFormattedResult;
         logger.info("Chat succeeded (search shortcut)", { operation: "chat", userId: user.id, durationMs: Date.now() - start });
         return NextResponse.json({ content, role: "assistant" });
