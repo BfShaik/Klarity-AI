@@ -1,14 +1,15 @@
 import { createClient } from "@/lib/supabase/server";
-import Link from "next/link";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { useOracle } from "@/lib/db";
+import * as oracleProfiles from "@/lib/oracle/tables/profiles";
 
 export async function Header() {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    const { data: profile } = user
-      ? await supabase.from("profiles").select("display_name, avatar_url").eq("id", user.id).maybeSingle()
-      : { data: null };
+    const profile = user
+      ? (useOracle ? await oracleProfiles.getProfile(user.id) : (await supabase.from("profiles").select("display_name, avatar_url").eq("id", user.id).maybeSingle()).data)
+      : null;
 
     const displayName = profile?.display_name?.trim();
     const avatarUrl = profile?.avatar_url?.trim();

@@ -2,10 +2,19 @@ import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
 import { toUserMessage, getErrorContextForLog } from "@/lib/errors";
+import { useOracle } from "@/lib/db";
+import * as oracleNotes from "@/lib/oracle/tables/notes";
+import * as oracleWorkLogs from "@/lib/oracle/tables/work-logs";
+import * as oracleCustomers from "@/lib/oracle/tables/customers";
+import * as oraclePlans from "@/lib/oracle/tables/daily-plans";
+import * as oracleAchievements from "@/lib/oracle/tables/achievements";
 
 export const dynamic = "force-dynamic";
 
-// Keyword search stub. Add semantic/vector search when embeddings are set up.
+function escapeLike(s: string) {
+  return s.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
+}
+
 export async function GET(request: Request) {
   const start = Date.now();
   let userId: string | undefined;
@@ -20,12 +29,43 @@ export async function GET(request: Request) {
     const raw = searchParams.get("q")?.trim();
     if (!raw) return NextResponse.json({ results: { notes: [], workLogs: [], customers: [], plans: [], achievements: [] } });
 
-    // Escape LIKE special chars: % _ \
-    const escape = (s: string) => s.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
-    const q = escape(raw);
+    const q = escapeLike(raw);
     const pattern = `%${q}%`;
 
-    // Use separate queries for title/body, name/notes, plans, achievements, then combine and dedupe
+    if (useOracle) {
+      const [notes, workLogs, customers, plans, achievements] = await Promise.all([
+        oracleNotes.searchNotes(user.id, pattern, 20),
+        oracleWorkLogs.searchWorkLogs(user.id, pattern, 20),
+        oracleCustomers.searchCustomers(user.id, pattern, 20),
+        oraclePlans.searchDailyPlans(user.id, pattern, 20),
+        oracleAchievements.searchAchievements(user.id, pattern, 20),
+      ]);
+
+      const notesFormatted = notes.map((n) => ({ id: n.id, title: n.title, body: n.body }));
+      const workLogsFormatted = workLogs.map((w) => ({ id: w.id, date: w.date, summary: w.summary }));
+      const customersFormatted = customers.map((c) => ({ id: c.id, name: c.name, notes: c.notes }));
+      const plansFormatted = plans.map((p) => ({ id: p.id, date: p.plan_date, content: p.content, notes: null }));
+      const achievementsFormatted = achievements.map((a) => ({
+        id: a.id,
+        type: a.type,
+        custom_title: a.custom_title,
+        custom_description: a.custom_description,
+        earned_at: a.earned_at,
+      }));
+
+      logger.info("Search succeeded", { operation: "search", resource: "search", userId, durationMs: Date.now() - start });
+      return NextResponse.json({
+        results: {
+          notes: notesFormatted,
+          workLogs: workLogsFormatted,
+          customers: customersFormatted,
+          plans: plansFormatted,
+          achievements: achievementsFormatted,
+        },
+      });
+    }
+
+    // Supabase path
     const [
       notesTitle,
       notesBody,
@@ -48,7 +88,6 @@ export async function GET(request: Request) {
       supabase.from("achievements").select("id, type, custom_title, custom_description, earned_at").ilike("custom_description", pattern),
     ]);
 
-    // Check for errors
     if (notesTitle.error) throw notesTitle.error;
     if (notesBody.error) throw notesBody.error;
     if (workLogs.error) throw workLogs.error;
@@ -59,29 +98,14 @@ export async function GET(request: Request) {
     if (achievementsTitle.error) throw achievementsTitle.error;
     if (achievementsDesc.error) throw achievementsDesc.error;
 
-    // Combine and deduplicate notes
     const allNotes = [...(notesTitle.data ?? []), ...(notesBody.data ?? [])];
-    const uniqueNotes = Array.from(
-      new Map(allNotes.map((n) => [n.id, n])).values()
-    );
-
-    // Combine and deduplicate customers
+    const uniqueNotes = Array.from(new Map(allNotes.map((n) => [n.id, n])).values());
     const allCustomers = [...(customersName.data ?? []), ...(customersNotes.data ?? [])];
-    const uniqueCustomers = Array.from(
-      new Map(allCustomers.map((c) => [c.id, c])).values()
-    );
-
-    // Combine and deduplicate plans
+    const uniqueCustomers = Array.from(new Map(allCustomers.map((c) => [c.id, c])).values());
     const allPlans = [...(plansContent.data ?? []), ...(plansNotes.data ?? [])];
-    const uniquePlans = Array.from(
-      new Map(allPlans.map((p) => [p.id, p])).values()
-    );
-
-    // Combine and deduplicate achievements
+    const uniquePlans = Array.from(new Map(allPlans.map((p) => [p.id, p])).values());
     const allAchievements = [...(achievementsTitle.data ?? []), ...(achievementsDesc.data ?? [])];
-    const uniqueAchievements = Array.from(
-      new Map(allAchievements.map((a) => [a.id, a])).values()
-    );
+    const uniqueAchievements = Array.from(new Map(allAchievements.map((a) => [a.id, a])).values());
 
     logger.info("Search succeeded", { operation: "search", resource: "search", userId, durationMs: Date.now() - start });
     return NextResponse.json({

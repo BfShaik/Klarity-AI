@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import OAuthButtons from "@/components/auth/OAuthButtons";
+import { toUserMessage } from "@/lib/errors";
 
 export default function LoginForm({ oauthError }: { oauthError: string | null }) {
   const [email, setEmail] = useState("");
@@ -21,7 +22,7 @@ export default function LoginForm({ oauthError }: { oauthError: string | null })
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (error) {
-      setError(error.message);
+      setError(toUserMessage(error));
       return;
     }
     router.push("/");
@@ -44,7 +45,12 @@ export default function LoginForm({ oauthError }: { oauthError: string | null })
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/50 p-2 rounded-lg">{error}</p>
+            <div className="rounded-lg border border-red-500/50 bg-red-500/10 p-3" role="alert">
+              <p className="text-sm text-red-400 font-medium">{error}</p>
+              {!error.includes("internal issue") && (
+                <p className="mt-1 text-xs text-slate-400">Check your email and password, then try again.</p>
+              )}
+            </div>
           )}
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-1">Email</label>

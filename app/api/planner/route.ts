@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
 import { toUserMessage, getErrorContextForLog } from "@/lib/errors";
 import { ensureProfile } from "@/lib/ensure-profile";
+import { useOracle } from "@/lib/db";
+import * as oraclePlans from "@/lib/oracle/tables/daily-plans";
 
 export const dynamic = "force-dynamic";
 
@@ -27,14 +29,22 @@ export async function POST(request: Request) {
     const { date, content, notes, planId } = body;
     if (!date) return NextResponse.json({ error: "date required" }, { status: 400 });
 
-    // Validate date format (YYYY-MM-DD)
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       return NextResponse.json({ error: "Invalid date format. Use YYYY-MM-DD" }, { status: 400 });
     }
 
-    // Validate planId format if provided (should be UUID)
     if (planId && typeof planId !== "string") {
       return NextResponse.json({ error: "Invalid planId format" }, { status: 400 });
+    }
+
+    if (useOracle) {
+      await oraclePlans.upsertDailyPlan(user.id, date, {
+        content: content != null ? String(content).trim() : null,
+        notes: notes != null ? String(notes).trim() : null,
+      });
+      const data = await oraclePlans.getDailyPlanByUserAndDate(user.id, date);
+      logger.info("Planner save succeeded", { operation: "savePlan", resource: "daily_plans", userId, durationMs: Date.now() - start });
+      return NextResponse.json({ ok: true, data: data ?? { id: "", content: null, notes: null } });
     }
 
     if (planId) {

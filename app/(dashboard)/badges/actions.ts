@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { withCrudLogging } from "@/lib/crud-context";
 import { ensureProfile } from "@/lib/ensure-profile";
+import { useOracle } from "@/lib/db";
+import * as oracleAchievements from "@/lib/oracle/tables/achievements";
 
 export async function createCustomBadge(formData: FormData) {
   const supabase = await createClient();
@@ -21,16 +23,20 @@ export async function createCustomBadge(formData: FormData) {
   return withCrudLogging(
     { operation: "createCustomBadge", resource: "achievements", userId: user.id },
     async () => {
-      const { error } = await supabase.from("achievements").insert({
-        user_id: user.id,
-        type: "badge",
-        badge_id: null,
-        custom_title: title,
-        custom_description: description,
-        earned_at: earnedAt,
-        credential_url: credentialUrl,
-      });
-      if (error) throw error;
+      if (useOracle) {
+        await oracleAchievements.insertAchievement(user.id, { type: "badge", custom_title: title, custom_description: description, earned_at: earnedAt, credential_url: credentialUrl });
+      } else {
+        const { error } = await supabase.from("achievements").insert({
+          user_id: user.id,
+          type: "badge",
+          badge_id: null,
+          custom_title: title,
+          custom_description: description,
+          earned_at: earnedAt,
+          credential_url: credentialUrl,
+        });
+        if (error) throw error;
+      }
       revalidatePath("/badges");
       revalidatePath("/achievements");
       revalidatePath("/");
@@ -51,13 +57,17 @@ export async function markBadgeEarned(formData: FormData) {
   return withCrudLogging(
     { operation: "markBadgeEarned", resource: "achievements", userId: user.id },
     async () => {
-      const { error } = await supabase.from("achievements").insert({
-        user_id: user.id,
-        type: "badge",
-        badge_id: badgeId,
-        earned_at: earnedAt,
-      });
-      if (error) throw error;
+      if (useOracle) {
+        await oracleAchievements.insertAchievement(user.id, { type: "badge", badge_id: badgeId, earned_at: earnedAt });
+      } else {
+        const { error } = await supabase.from("achievements").insert({
+          user_id: user.id,
+          type: "badge",
+          badge_id: badgeId,
+          earned_at: earnedAt,
+        });
+        if (error) throw error;
+      }
       revalidatePath("/badges");
       revalidatePath("/achievements");
       revalidatePath("/");
@@ -72,8 +82,12 @@ export async function deleteAchievement(id: string) {
   return withCrudLogging(
     { operation: "deleteAchievement", resource: "achievements", userId: user.id },
     async () => {
-      const { error } = await supabase.from("achievements").delete().eq("id", id).eq("user_id", user.id);
-      if (error) throw error;
+      if (useOracle) {
+        await oracleAchievements.deleteAchievement(id, user.id);
+      } else {
+        const { error } = await supabase.from("achievements").delete().eq("id", id).eq("user_id", user.id);
+        if (error) throw error;
+      }
       revalidatePath("/certifications");
       revalidatePath("/badges");
       revalidatePath("/achievements");

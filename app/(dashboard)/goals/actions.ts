@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { withCrudLogging } from "@/lib/crud-context";
 import { ensureProfile } from "@/lib/ensure-profile";
+import { useOracle } from "@/lib/db";
+import * as oracleGoals from "@/lib/oracle/tables/goals";
 
 export async function createGoal(formData: FormData) {
   const supabase = await createClient();
@@ -16,15 +18,19 @@ export async function createGoal(formData: FormData) {
     async () => {
       const title = (formData.get("title") as string)?.trim();
       if (!title) throw new Error("Title is required.");
-      const target_date = (formData.get("target_date") as string) || null;
+      const target_date = (formData.get("target_date") as string)?.trim() || null;
       const linkedCertId = (formData.get("linked_certification_id") as string)?.trim() || null;
-      const { error } = await supabase.from("goals").insert({
-        user_id: user.id,
-        title,
-        target_date,
-        linked_certification_id: linkedCertId || null,
-      });
-      if (error) throw error;
+      if (useOracle) {
+        await oracleGoals.insertGoal(user.id, { title, target_date, linked_certification_id: linkedCertId });
+      } else {
+        const { error } = await supabase.from("goals").insert({
+          user_id: user.id,
+          title,
+          target_date,
+          linked_certification_id: linkedCertId,
+        });
+        if (error) throw error;
+      }
       revalidatePath("/goals");
     }
   );
@@ -39,17 +45,21 @@ export async function updateGoal(id: string, formData: FormData) {
     async () => {
       const title = (formData.get("title") as string)?.trim();
       if (!title) throw new Error("Title is required.");
-      const target_date = (formData.get("target_date") as string) || null;
+      const target_date = (formData.get("target_date") as string)?.trim() || null;
       const status = (formData.get("status") as string)?.trim() || "active";
       const linkedCertId = (formData.get("linked_certification_id") as string)?.trim() || null;
-      const { error } = await supabase.from("goals").update({
-        title,
-        target_date,
-        status,
-        linked_certification_id: linkedCertId || null,
-        updated_at: new Date().toISOString(),
-      }).eq("id", id).eq("user_id", user.id);
-      if (error) throw error;
+      if (useOracle) {
+        await oracleGoals.updateGoal(id, user.id, { title, target_date, status, linked_certification_id: linkedCertId });
+      } else {
+        const { error } = await supabase.from("goals").update({
+          title,
+          target_date,
+          status,
+          linked_certification_id: linkedCertId,
+          updated_at: new Date().toISOString(),
+        }).eq("id", id).eq("user_id", user.id);
+        if (error) throw error;
+      }
       revalidatePath("/goals");
     }
   );
@@ -62,8 +72,12 @@ export async function deleteGoal(id: string) {
   return withCrudLogging(
     { operation: "deleteGoal", resource: "goals", userId: user.id },
     async () => {
-      const { error } = await supabase.from("goals").delete().eq("id", id).eq("user_id", user.id);
-      if (error) throw error;
+      if (useOracle) {
+        await oracleGoals.deleteGoal(id, user.id);
+      } else {
+        const { error } = await supabase.from("goals").delete().eq("id", id).eq("user_id", user.id);
+        if (error) throw error;
+      }
       revalidatePath("/goals");
     }
   );

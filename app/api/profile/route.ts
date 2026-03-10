@@ -1,17 +1,17 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { ensureProfile } from "@/lib/ensure-profile";
+import { useOracle } from "@/lib/db";
+import * as oracleProfiles from "@/lib/oracle/tables/profiles";
 
 export async function GET() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("display_name, avatar_url, email")
-    .eq("id", user.id)
-    .maybeSingle();
+  const profile = useOracle
+    ? await oracleProfiles.getProfile(user.id)
+    : (await supabase.from("profiles").select("display_name, avatar_url, email").eq("id", user.id).maybeSingle()).data;
 
   return NextResponse.json({ profile: profile ?? null });
 }
@@ -32,6 +32,11 @@ export async function PATCH(request: Request) {
 
   const displayName = typeof body.display_name === "string" ? body.display_name.trim() || null : null;
   const avatarUrl = typeof body.avatar_url === "string" ? body.avatar_url.trim() || null : null;
+
+  if (useOracle) {
+    await oracleProfiles.updateProfile(user.id, { display_name: displayName, avatar_url: avatarUrl });
+    return NextResponse.json({ ok: true });
+  }
 
   const { error } = await supabase
     .from("profiles")

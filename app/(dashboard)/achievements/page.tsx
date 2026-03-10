@@ -1,10 +1,15 @@
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import dynamic from "next/dynamic";
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import AchievementsTable from "./AchievementsTable";
 import AchievementFilters from "./AchievementFilters";
 import AchievementProgress from "./AchievementProgress";
+import { useOracle } from "@/lib/db";
+import * as oracleAchievements from "@/lib/oracle/tables/achievements";
+import * as oracleCertCatalog from "@/lib/oracle/tables/certification-catalog";
+import * as oracleBadgeCatalog from "@/lib/oracle/tables/badge-catalog";
 
 const AddMilestoneForm = dynamic(() => import("./AddMilestoneForm"), { ssr: false });
 
@@ -34,45 +39,22 @@ export default async function AchievementsPage({
 
   try {
     const supabase = await createClient();
-    let query = supabase
-      .from("achievements")
-      .select("id, type, custom_title, earned_at")
-      .order("earned_at", { ascending: false });
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) redirect("/login");
 
-    if (type && ["certification", "badge", "milestone"].includes(type)) {
-      query = query.eq("type", type);
-    }
-    if (from && /^\d{4}-\d{2}-\d{2}$/.test(from)) {
-      query = query.gte("earned_at", from);
-    }
-    if (to && /^\d{4}-\d{2}-\d{2}$/.test(to)) {
-      query = query.lte("earned_at", to);
-    }
-
-    const [
-      { data: achievementData, error: achievementError },
-      { data: certCatalog },
-      { data: badgeCatalog },
-      { data: certEarned },
-      { data: badgeEarned },
-    ] = await Promise.all([
-      query,
-      supabase.from("certification_catalog").select("id, level"),
-      supabase.from("badge_catalog").select("id"),
-      supabase.from("achievements").select("certification_id").eq("type", "certification"),
-      supabase.from("achievements").select("badge_id").eq("type", "badge"),
-    ]);
-
-    if (achievementError) {
-      loadError = achievementError.message;
-    } else {
-      achievements = (achievementData ?? []) as Array<{ id: string; type: string; custom_title: string | null; earned_at: string }>;
-
-      // Build progress: certifications by level
-      const certCatalogMap = new Map((certCatalog ?? []).map((c) => [c.id, c.level ?? "Other"]));
+    if (useOracle) {
+      const [achievementData, certCatalog, badgeCatalog, certEarned, badgeEarned] = await Promise.all([
+        oracleAchievements.getAchievementsByUser(user.id, { type, fromDate: from, toDate: to }),
+        oracleCertCatalog.getCertificationIdsWithLevel(),
+        oracleBadgeCatalog.getBadgeCatalog(),
+        oracleAchievements.getCertificationIdsEarned(user.id),
+        oracleAchievements.getBadgeIdsEarned(user.id),
+      ]);
+      achievements = achievementData.map((a) => ({ id: a.id, type: a.type, custom_title: a.custom_title, earned_at: a.earned_at }));
+      const certCatalogMap = new Map((certCatalog ?? []).map((c) => [c.id, (c.cert_level as string) ?? "Other"]));
       const certsByLevel = new Map<string, { total: number; earned: number }>();
       for (const c of certCatalog ?? []) {
-        const lvl = (c.level as string)?.trim() || "Other";
+        const lvl = (c.cert_level as string)?.trim() || "Other";
         const current = certsByLevel.get(lvl) ?? { total: 0, earned: 0 };
         current.total++;
         certsByLevel.set(lvl, current);
@@ -84,19 +66,57 @@ export default async function AchievementsPage({
         if (current) current.earned++;
         else certsByLevel.set(lvl, { total: 1, earned: 1 });
       }
-
       progress = {
-        certificationsByLevel: Array.from(certsByLevel.entries()).map(([level, { earned, total }]) => ({
-          level,
-          earned,
-          total,
-        })),
+        certificationsByLevel: Array.from(certsByLevel.entries()).map(([level, { earned, total }]) => ({ level, earned, total })),
         badgeProgress: {
           total: badgeCatalog?.length ?? 0,
           earned: (badgeEarned ?? []).filter((e) => e.badge_id != null).length,
         },
-        milestoneCount: (achievementData ?? []).filter((a) => (a as { type: string }).type === "milestone").length,
+        milestoneCount: achievementData.filter((a) => a.type === "milestone").length,
       };
+    } else {
+      let q = supabase.from("achievements").select("id, type, custom_title, earned_at").order("earned_at", { ascending: false });
+      if (type && ["certification", "badge", "milestone"].includes(type)) q = q.eq("type", type);
+      if (from && /^\d{4}-\d{2}-\d{2}$/.test(from)) q = q.gte("earned_at", from);
+      if (to && /^\d{4}-\d{2}-\d{2}$/.test(to)) q = q.lte("earned_at", to);
+      const [
+        { data: achievementData, error: achievementError },
+        { data: certCatalog },
+        { data: badgeCatalog },
+        { data: certEarned },
+        { data: badgeEarned },
+      ] = await Promise.all([
+        q,
+        supabase.from("certification_catalog").select("id, level"),
+        supabase.from("badge_catalog").select("id"),
+        supabase.from("achievements").select("certification_id").eq("type", "certification"),
+        supabase.from("achievements").select("badge_id").eq("type", "badge"),
+      ]);
+      if (achievementError) {
+        loadError = achievementError.message;
+      } else {
+        achievements = (achievementData ?? []) as Array<{ id: string; type: string; custom_title: string | null; earned_at: string }>;
+        const certCatalogMap = new Map((certCatalog ?? []).map((c) => [c.id, c.level ?? "Other"]));
+        const certsByLevel = new Map<string, { total: number; earned: number }>();
+        for (const c of certCatalog ?? []) {
+          const lvl = (c.level as string)?.trim() || "Other";
+          const current = certsByLevel.get(lvl) ?? { total: 0, earned: 0 };
+          current.total++;
+          certsByLevel.set(lvl, current);
+        }
+        const earnedCertIds = new Set((certEarned ?? []).map((e) => e.certification_id).filter(Boolean));
+        for (const certId of Array.from(earnedCertIds)) {
+          const lvl = certCatalogMap.get(certId as string) ?? "Other";
+          const current = certsByLevel.get(lvl);
+          if (current) current.earned++;
+          else certsByLevel.set(lvl, { total: 1, earned: 1 });
+        }
+        progress = {
+          certificationsByLevel: Array.from(certsByLevel.entries()).map(([level, { earned, total }]) => ({ level, earned, total })),
+          badgeProgress: { total: badgeCatalog?.length ?? 0, earned: (badgeEarned ?? []).filter((e) => e.badge_id != null).length },
+          milestoneCount: (achievementData ?? []).filter((a) => (a as { type: string }).type === "milestone").length,
+        };
+      }
     }
   } catch (e) {
     loadError = e instanceof Error ? e.message : "Failed to load achievements.";

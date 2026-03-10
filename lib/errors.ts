@@ -58,6 +58,8 @@ const USER_MESSAGES: Record<string, string> = {
   "23514": "A value is not allowed for this field.",
   "42501": "You don’t have permission to do this.",
   "PGRST116": "The requested record was not found.",
+  "invalid_login_credentials": "Invalid email or password. Please check your credentials and try again.",
+  "email_not_confirmed": "Please confirm your email address. Check your inbox for the verification link.",
 };
 
 /**
@@ -68,12 +70,14 @@ export function toUserMessage(error: unknown): string {
     return SERVICE_UNAVAILABLE_MESSAGE;
   }
   if (isSupabaseLikeError(error)) {
-    const code = error.code ?? "";
+    const code = (error as { code?: string }).code ?? "";
     const custom = USER_MESSAGES[code];
     if (custom) return custom;
-    if (error.message && typeof error.message === "string") {
-      return error.message.length > 200 ? "Something went wrong. Please try again." : error.message;
-    }
+    const msg = error.message && typeof error.message === "string" ? error.message : "";
+    if (msg.toLowerCase().includes("invalid login credentials")) return USER_MESSAGES["invalid_login_credentials"];
+    if (msg.toLowerCase().includes("email not confirmed")) return USER_MESSAGES["email_not_confirmed"];
+    if (msg.length > 200) return "Something went wrong. Please try again.";
+    if (msg) return msg;
   }
   if (error instanceof Error) {
     return error.message || "Something went wrong. Please try again.";

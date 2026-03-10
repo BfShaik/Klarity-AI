@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 type Customer = { id: string; name: string };
 
@@ -95,23 +96,26 @@ export default function WorkLogForm({ customers }: { customers: Customer[] }) {
           className="w-24 input-dark"
         />
       </div>
-      {customers.length > 0 && (
-        <div>
-          <label className="block text-sm font-medium text-slate-300 mb-1">Customer</label>
-          <select
-            value={customerId}
-            onChange={(e) => setCustomerId(e.target.value)}
-            className="w-full input-dark"
-          >
-            <option value="">— None —</option>
-            {customers.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
+      <div>
+        <label className="block text-sm font-medium text-slate-300 mb-1">Customer</label>
+        <select
+          value={customerId}
+          onChange={(e) => setCustomerId(e.target.value)}
+          className="w-full input-dark"
+        >
+          <option value="">— None —</option>
+          {customers.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+        {customers.length === 0 && (
+          <p className="text-xs text-slate-400 mt-1">
+            <Link href="/customers" className="underline hover:text-slate-300">Add customers</Link> to associate with entries.
+          </p>
+        )}
+      </div>
       <button
         type="submit"
         disabled={saving}

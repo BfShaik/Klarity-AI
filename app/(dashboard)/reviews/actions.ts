@@ -3,6 +3,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { useOracle } from "@/lib/db";
+import * as oracleReviewEntries from "@/lib/oracle/tables/review-entries";
 
 export async function addReviewEntry(formData: FormData) {
   const supabase = await createClient();
@@ -15,13 +17,16 @@ export async function addReviewEntry(formData: FormData) {
   const periodType = (formData.get("period_type") as string) || "weekly";
   const periodStart = (formData.get("period_start") as string) || new Date().toISOString().slice(0, 10);
 
-  const { error } = await supabase.from("review_entries").insert({
-    user_id: user.id,
-    content,
-    period_type: periodType,
-    period_start: periodStart,
-  });
-
-  if (error) throw error;
+  if (useOracle) {
+    await oracleReviewEntries.insertReviewEntry(user.id, { content, period_type: periodType, period_start: periodStart });
+  } else {
+    const { error } = await supabase.from("review_entries").insert({
+      user_id: user.id,
+      content,
+      period_type: periodType,
+      period_start: periodStart,
+    });
+    if (error) throw error;
+  }
   revalidatePath("/reviews");
 }

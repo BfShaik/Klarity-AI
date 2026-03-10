@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { withCrudLogging } from "@/lib/crud-context";
 import { ensureProfile } from "@/lib/ensure-profile";
+import { useOracle } from "@/lib/db";
+import * as oracleAchievements from "@/lib/oracle/tables/achievements";
 
 export async function createCustomMilestone(formData: FormData) {
   const supabase = await createClient();
@@ -21,15 +23,19 @@ export async function createCustomMilestone(formData: FormData) {
   return withCrudLogging(
     { operation: "createCustomMilestone", resource: "achievements", userId: user.id },
     async () => {
-      const { error } = await supabase.from("achievements").insert({
-        user_id: user.id,
-        type: "milestone",
-        custom_title: title,
-        custom_description: description,
-        earned_at: earnedAt,
-        credential_url: credentialUrl,
-      });
-      if (error) throw error;
+      if (useOracle) {
+        await oracleAchievements.insertAchievement(user.id, { type: "milestone", custom_title: title, custom_description: description, earned_at: earnedAt, credential_url: credentialUrl });
+      } else {
+        const { error } = await supabase.from("achievements").insert({
+          user_id: user.id,
+          type: "milestone",
+          custom_title: title,
+          custom_description: description,
+          earned_at: earnedAt,
+          credential_url: credentialUrl,
+        });
+        if (error) throw error;
+      }
       revalidatePath("/achievements");
       revalidatePath("/");
     }

@@ -5,6 +5,7 @@ function isConnectionError(e: unknown): boolean {
   const msg = (e instanceof Error ? e.message + " " + (e.cause ? String(e.cause) : "") : String(e)).toLowerCase();
   return (
     msg.includes("fetch failed") ||
+    msg.includes("enotfound") ||
     msg.includes("econnrefused") ||
     msg.includes("etimedout") ||
     msg.includes("connection refused") ||
@@ -34,12 +35,17 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
+  const isServiceUnavailablePath = request.nextUrl.pathname === "/service-unavailable";
+
   let user;
   try {
     const { data } = await supabase.auth.getUser();
     user = data.user;
   } catch (e) {
     if (isConnectionError(e)) {
+      if (isServiceUnavailablePath) {
+        return response;
+      }
       const url = request.nextUrl.clone();
       url.pathname = "/service-unavailable";
       return NextResponse.redirect(url);
@@ -51,7 +57,7 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/login") ||
     request.nextUrl.pathname.startsWith("/signup") ||
     request.nextUrl.pathname.startsWith("/auth/");
-  const isServiceUnavailable = request.nextUrl.pathname === "/service-unavailable";
+  const isServiceUnavailable = isServiceUnavailablePath;
   const isApiRoute = request.nextUrl.pathname.startsWith("/api/");
 
   if (isServiceUnavailable) {

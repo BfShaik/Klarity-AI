@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { toUserMessage } from "@/lib/errors";
 
 export default function VoiceRecorder({
   onTranscript,
@@ -93,13 +94,13 @@ export default function VoiceRecorder({
       if (data.transcript) onTranscript(data.transcript);
       else if (data.error) setError(data.error);
       else setError("Transcription failed. Paste or type your note instead.");
-    } catch (err) {
-      if (err instanceof Error && err.name === "AbortError") {
-        setError("Request timed out (API may be overloaded). Try again in a minute.");
-      } else {
-        setError("Transcription failed. Paste or type your note instead.");
-      }
-    } finally {
+      } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") {
+          setError("Request timed out (API may be overloaded). Try again in a minute.");
+        } else {
+          setError(toUserMessage(err));
+        }
+      } finally {
       setProcessing(false);
     }
   }, [onTranscript]);

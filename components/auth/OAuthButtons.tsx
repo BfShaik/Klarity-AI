@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { toUserMessage } from "@/lib/errors";
 
 type Provider = "google" | "github";
 
@@ -21,7 +22,7 @@ export default function OAuthButtons() {
     });
     setLoading(null);
     if (err) {
-      setError(err.message);
+      setError(toUserMessage(err));
       return;
     }
     if (data?.url) {

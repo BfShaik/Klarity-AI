@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import OAuthButtons from "@/components/auth/OAuthButtons";
+import { toUserMessage } from "@/lib/errors";
 
 export default function SignupPage() {
   const [email, setEmail] = useState("");
@@ -27,7 +28,7 @@ export default function SignupPage() {
     });
     setLoading(false);
     if (error) {
-      setError(error.message);
+      setError(toUserMessage(error));
       return;
     }
     setMessage("Check your email for the confirmation link.");

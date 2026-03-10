@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { withCrudLogging } from "@/lib/crud-context";
 import { ensureProfile } from "@/lib/ensure-profile";
+import { useOracle } from "@/lib/db";
+import * as oracleWorkLogs from "@/lib/oracle/tables/work-logs";
 
 export async function updateWorkLog(id: string, formData: FormData) {
   const supabase = await createClient();
@@ -21,12 +23,17 @@ export async function updateWorkLog(id: string, formData: FormData) {
       const minutes = minutesRaw !== null && minutesRaw !== "" ? Math.max(0, parseInt(String(minutesRaw), 10)) : null;
       const customerIdRaw = (formData.get("customer_id") as string)?.trim();
       const customerId = customerIdRaw || null;
-      const { error } = await supabase
-        .from("work_logs")
-        .update({ date, summary, minutes, customer_id: customerId, updated_at: new Date().toISOString() })
-        .eq("id", id)
-        .eq("user_id", user.id);
-      if (error) throw error;
+
+      if (useOracle) {
+        await oracleWorkLogs.updateWorkLog(id, user.id, { date, summary, minutes, customer_id: customerId });
+      } else {
+        const { error } = await supabase
+          .from("work_logs")
+          .update({ date, summary, minutes, customer_id: customerId, updated_at: new Date().toISOString() })
+          .eq("id", id)
+          .eq("user_id", user.id);
+        if (error) throw error;
+      }
       revalidatePath("/work-log");
     }
   );
@@ -39,8 +46,12 @@ export async function deleteWorkLog(id: string) {
   return withCrudLogging(
     { operation: "deleteWorkLog", resource: "work_logs", userId: user.id },
     async () => {
-      const { error } = await supabase.from("work_logs").delete().eq("id", id).eq("user_id", user.id);
-      if (error) throw error;
+      if (useOracle) {
+        await oracleWorkLogs.deleteWorkLog(id, user.id);
+      } else {
+        const { error } = await supabase.from("work_logs").delete().eq("id", id).eq("user_id", user.id);
+        if (error) throw error;
+      }
       revalidatePath("/work-log");
     }
   );

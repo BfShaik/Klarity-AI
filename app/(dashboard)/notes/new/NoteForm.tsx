@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import VoiceRecorder from "@/components/voice/VoiceRecorder";
+import { toUserMessage } from "@/lib/errors";
 
 // Voice recording on hold; set to true to re-enable
 const VOICE_RECORDING_ENABLED = false;
@@ -38,7 +39,7 @@ export default function NoteForm({
         setRefineError(data.error || "Failed to refine note");
       }
     } catch (err) {
-      setRefineError("Network error. Please try again.");
+      setRefineError(toUserMessage(err));
     } finally {
       setRefining(false);
     }
@@ -50,7 +51,7 @@ export default function NoteForm({
       try {
         await action(formData);
       } catch (err) {
-        setSubmitError(err instanceof Error ? err.message : "Could not save note. Please try again.");
+        setSubmitError(toUserMessage(err));
       }
     });
   }

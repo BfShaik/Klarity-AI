@@ -1,10 +1,15 @@
 import { createClient } from "@/lib/supabase/server";
 import { ensureProfile } from "@/lib/ensure-profile";
 import { NextResponse } from "next/server";
-import { genAI } from "@/lib/gemini";
+import { ociGenAI, OCI_DEFAULT_MODEL } from "@/lib/oci-genai";
 import { logger } from "@/lib/logger";
 import { getErrorContextForLog } from "@/lib/errors";
-import { Type } from "@google/genai";
+import { useOracle } from "@/lib/db";
+import * as oracleAchievements from "@/lib/oracle/tables/achievements";
+import * as oracleWorkLogs from "@/lib/oracle/tables/work-logs";
+import * as oracleNotes from "@/lib/oracle/tables/notes";
+import * as oracleCustomers from "@/lib/oracle/tables/customers";
+import * as oraclePlans from "@/lib/oracle/tables/daily-plans";
 
 export const dynamic = "force-dynamic";
 
@@ -37,90 +42,108 @@ IMPORTANT: When presenting search results, always format them in clean Markdown:
 - Customer A, Customer B
 `;
 
-const TOOL_DECLARATIONS = [
+const TOOL_DEFINITIONS = [
   {
-    name: "add_achievement",
-    description: "Add a new milestone achievement (custom accomplishment, certification, or badge earned)",
-    parameters: {
-      type: Type.OBJECT,
-      properties: {
-        title: { type: Type.STRING, description: "Achievement title (e.g. Oracle Cloud Architect)" },
-        description: { type: Type.STRING, description: "Optional description" },
-        earned_at: { type: Type.STRING, description: "Date earned in YYYY-MM-DD format" },
+    type: "function" as const,
+    function: {
+      name: "add_achievement",
+      description: "Add a new milestone achievement (custom accomplishment, certification, or badge earned)",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "Achievement title (e.g. Oracle Cloud Architect)" },
+          description: { type: "string", description: "Optional description" },
+          earned_at: { type: "string", description: "Date earned in YYYY-MM-DD format" },
+        },
+        required: ["title", "earned_at"],
       },
-      required: ["title", "earned_at"],
     },
   },
   {
-    name: "add_work_log",
-    description: "Add a work log entry (what you did on a given date)",
-    parameters: {
-      type: Type.OBJECT,
-      properties: {
-        date: { type: Type.STRING, description: "Date in YYYY-MM-DD format" },
-        summary: { type: Type.STRING, description: "What you did" },
-        minutes: { type: Type.NUMBER, description: "Optional time spent in minutes" },
+    type: "function" as const,
+    function: {
+      name: "add_work_log",
+      description: "Add a work log entry (what you did on a given date)",
+      parameters: {
+        type: "object",
+        properties: {
+          date: { type: "string", description: "Date in YYYY-MM-DD format" },
+          summary: { type: "string", description: "What you did" },
+          minutes: { type: "number", description: "Optional time spent in minutes" },
+        },
+        required: ["date", "summary"],
       },
-      required: ["date", "summary"],
     },
   },
   {
-    name: "add_note",
-    description: "Add a new note (meeting notes, ideas, customer notes)",
-    parameters: {
-      type: Type.OBJECT,
-      properties: {
-        title: { type: Type.STRING, description: "Note title" },
-        body: { type: Type.STRING, description: "Note content (optional)" },
+    type: "function" as const,
+    function: {
+      name: "add_note",
+      description: "Add a new note (meeting notes, ideas, customer notes)",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "Note title" },
+          body: { type: "string", description: "Note content (optional)" },
+        },
+        required: ["title"],
       },
-      required: ["title"],
     },
   },
   {
-    name: "search",
-    description: "Search by keyword across notes, work logs, customers, plans, and achievements. Use when user wants to find items containing a specific word or phrase.",
-    parameters: {
-      type: Type.OBJECT,
-      properties: {
-        query: { type: Type.STRING, description: "Search query (keyword to match)" },
+    type: "function" as const,
+    function: {
+      name: "search",
+      description: "Search by keyword across notes, work logs, customers, plans, and achievements. Use when user wants to find items containing a specific word or phrase.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Search query (keyword to match)" },
+        },
+        required: ["query"],
       },
-      required: ["query"],
     },
   },
   {
-    name: "list_notes",
-    description: "List ALL notes for the user. Use when user asks to list notes, show all notes, what notes do I have, display my notes, etc. Do NOT use search for this.",
-    parameters: {
-      type: Type.OBJECT,
-      properties: {
-        limit: { type: Type.NUMBER, description: "Max number of notes to return (default 50)" },
+    type: "function" as const,
+    function: {
+      name: "list_notes",
+      description: "List ALL notes for the user. Use when user asks to list notes, show all notes, what notes do I have, display my notes, etc. Do NOT use search for this.",
+      parameters: {
+        type: "object",
+        properties: {
+          limit: { type: "number", description: "Max number of notes to return (default 50)" },
+        },
+        required: [],
       },
-      required: [],
     },
   },
 ];
 
-type ContentPart = { text?: string; functionResponse?: { name: string; response: unknown }; functionCall?: { name: string; args?: Record<string, unknown> } };
-type Content = { role: "user" | "model"; parts: ContentPart[] };
+type OpenAIMessage =
+  | { role: "system"; content: string }
+  | { role: "user"; content: string }
+  | { role: "assistant"; content: string | null; tool_calls?: Array<{ id: string; type: "function"; function: { name: string; arguments: string } }> }
+  | { role: "tool"; content: string; tool_call_id: string };
 
-function convertToContents(messages: { role: string; content?: string }[]): Content[] {
-  const contents: Content[] = [];
-  contents.push({ role: "user", parts: [{ text: SYSTEM_PROMPT }] });
-  for (const m of messages) {
-    const role = m.role === "assistant" ? "model" : "user";
-    if (m.content) {
-      contents.push({ role: role as "user" | "model", parts: [{ text: m.content }] });
+function buildMessages(chatMessages: { role: string; content?: string }[]): OpenAIMessage[] {
+  const messages: OpenAIMessage[] = [{ role: "system", content: SYSTEM_PROMPT }];
+  for (const m of chatMessages) {
+    if (m.role === "user") {
+      messages.push({ role: "user", content: m.content ?? "" });
+    } else if (m.role === "assistant" && m.content) {
+      messages.push({ role: "assistant", content: m.content });
     }
   }
-  return contents;
+  return messages;
 }
 
 export async function POST(request: Request) {
   const start = Date.now();
   try {
-    if (!genAI) {
+    if (!ociGenAI) {
       return NextResponse.json(
-        { error: "Chat not configured. Add GOOGLE_AI_API_KEY to .env.local" },
+        { error: "Chat not configured. Add OCI_GENAI_API_KEY to .env.local. Create API key in OCI Console → Generative AI → API Keys." },
         { status: 503 }
       );
     }
@@ -136,113 +159,202 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "messages required" }, { status: 400 });
     }
 
-    let contents = convertToContents(messages);
-    const config = {
-      tools: [{ functionDeclarations: TOOL_DECLARATIONS }],
-      maxOutputTokens: 512,
-      thinkingConfig: { thinkingBudget: 0 },
-    };
+    let openaiMessages = buildMessages(messages);
     const maxTurns = 5;
     let turns = 0;
-    let response = await genAI.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents,
-      config,
+    let response = await ociGenAI.chat.completions.create({
+      model: OCI_DEFAULT_MODEL,
+      messages: openaiMessages,
+      tools: TOOL_DEFINITIONS,
+      tool_choice: "auto",
+      max_tokens: 512,
     });
 
-    let functionCalls = response.functionCalls ?? [];
-    let text = (response.text ?? "").trim();
+    let choice = response.choices?.[0];
+    let message = choice?.message;
+    let toolCalls = message?.tool_calls ?? [];
+    let text = (message?.content ?? "").trim();
 
-    while (functionCalls.length > 0 && turns < maxTurns) {
+    const getFunctionToolCalls = (calls: typeof toolCalls) =>
+      calls.filter((tc) => tc.type === "function" && "function" in tc) as Array<{
+        id: string;
+        type: "function";
+        function: { name: string; arguments?: string };
+      }>;
+
+    while (toolCalls.length > 0 && turns < maxTurns) {
+      const functionToolCalls = getFunctionToolCalls(toolCalls);
+      if (functionToolCalls.length === 0) break;
+
       turns++;
-      const modelContent = response.candidates?.[0]?.content;
-      if (modelContent?.parts?.length) {
-        contents.push({ role: "model", parts: modelContent.parts });
-      }
+      openaiMessages.push({
+        role: "assistant",
+        content: message?.content ?? null,
+        tool_calls: functionToolCalls.map((tc) => ({
+          id: tc.id,
+          type: "function" as const,
+          function: { name: tc.function.name, arguments: tc.function.arguments ?? "{}" },
+        })),
+      });
 
-      const functionResponses: ContentPart[] = [];
+      const toolResults: OpenAIMessage[] = [];
       let searchOnlyWithFormattedResult: string | null = null;
 
-      for (const fc of functionCalls) {
-        const name = fc.name ?? "";
-        const args = (fc.args ?? {}) as Record<string, unknown>;
+      for (const tc of functionToolCalls) {
+        const name = tc.function.name;
+        let args: Record<string, unknown> = {};
+        try {
+          args = JSON.parse(tc.function.arguments ?? "{}");
+        } catch {
+          args = {};
+        }
         let result: string;
 
         try {
           if (name === "add_achievement") {
-            const { error } = await supabase.from("achievements").insert({
-              user_id: user.id,
-              type: "milestone",
-              custom_title: String(args.title ?? ""),
-              custom_description: args.description ? String(args.description) : null,
-              earned_at: String(args.earned_at ?? today),
-            });
-            result = error ? `Error: ${error.message}` : `Added achievement: ${args.title}`;
+            if (useOracle) {
+              await oracleAchievements.insertAchievement(user.id, {
+                type: "milestone",
+                custom_title: String(args.title ?? ""),
+                custom_description: args.description ? String(args.description) : null,
+                earned_at: String(args.earned_at ?? today),
+              });
+              result = `Added achievement: ${args.title}`;
+            } else {
+              const { error } = await supabase.from("achievements").insert({
+                user_id: user.id,
+                type: "milestone",
+                custom_title: String(args.title ?? ""),
+                custom_description: args.description ? String(args.description) : null,
+                earned_at: String(args.earned_at ?? today),
+              });
+              result = error ? `Error: ${error.message}` : `Added achievement: ${args.title}`;
+            }
           } else if (name === "add_work_log") {
-            const { error } = await supabase.from("work_logs").insert({
-              user_id: user.id,
-              date: String(args.date ?? today),
-              summary: String(args.summary ?? ""),
-              minutes: typeof args.minutes === "number" ? args.minutes : null,
-            });
-            result = error ? `Error: ${error.message}` : `Added work log: ${args.summary}`;
+            if (useOracle) {
+              await oracleWorkLogs.insertWorkLog({
+                user_id: user.id,
+                date: String(args.date ?? today),
+                summary: String(args.summary ?? ""),
+                minutes: typeof args.minutes === "number" ? args.minutes : null,
+              });
+              result = `Added work log: ${args.summary}`;
+            } else {
+              const { error } = await supabase.from("work_logs").insert({
+                user_id: user.id,
+                date: String(args.date ?? today),
+                summary: String(args.summary ?? ""),
+                minutes: typeof args.minutes === "number" ? args.minutes : null,
+              });
+              result = error ? `Error: ${error.message}` : `Added work log: ${args.summary}`;
+            }
           } else if (name === "add_note") {
-            const { error } = await supabase.from("notes").insert({
-              user_id: user.id,
-              title: String(args.title ?? ""),
-              body: args.body ? String(args.body) : null,
-            });
-            result = error ? `Error: ${error.message}` : `Added note: ${args.title}`;
+            if (useOracle) {
+              await oracleNotes.insertNote(user.id, {
+                title: String(args.title ?? ""),
+                body: args.body ? String(args.body) : null,
+              });
+              result = `Added note: ${args.title}`;
+            } else {
+              const { error } = await supabase.from("notes").insert({
+                user_id: user.id,
+                title: String(args.title ?? ""),
+                body: args.body ? String(args.body) : null,
+              });
+              result = error ? `Error: ${error.message}` : `Added note: ${args.title}`;
+            }
           } else if (name === "search") {
             const q = String(args.query ?? "").trim();
             const escape = (s: string) => s.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
             const pattern = `%${escape(q)}%`;
-            const [n1, n2, workRes, custRes, planRes, achRes] = await Promise.all([
-              supabase.from("notes").select("id, title").ilike("title", pattern).limit(5),
-              supabase.from("notes").select("id, title").ilike("body", pattern).limit(5),
-              supabase.from("work_logs").select("id, date, summary").ilike("summary", pattern).limit(5),
-              supabase.from("customers").select("id, name").ilike("name", pattern).limit(5),
-              supabase.from("daily_plans").select("id, date, content").ilike("content", pattern).limit(5),
-              supabase.from("achievements").select("id, custom_title, earned_at").ilike("custom_title", pattern).limit(5),
-            ]);
-            const notes = [...(n1.data ?? []), ...(n2.data ?? [])];
-            const uniqueNotes = Array.from(new Map(notes.map((n) => [n.id, n])).values());
-            const lines: string[] = [];
-            if (uniqueNotes.length) lines.push(`Notes:\n${uniqueNotes.map((n) => `- ${n.title}`).join("\n")}`);
-            if (workRes.data?.length) lines.push(`Work logs:\n${workRes.data.map((w) => `- ${w.date}: ${w.summary.slice(0, 80)}`).join("\n")}`);
-            if (custRes.data?.length) lines.push(`Customers:\n${custRes.data.map((c) => `- ${c.name}`).join("\n")}`);
-            if (planRes.data?.length) lines.push(`Plans: ${planRes.data.length} matching entries found`);
-            if (achRes.data?.length) lines.push(`Achievements:\n${achRes.data.map((a) => `- ${a.custom_title} (${a.earned_at})`).join("\n")}`);
-            result = lines.length ? lines.join("\n\n") : "No results found.";
-            const formattedSections = lines.map((line) => {
-              const [header, ...rest] = line.split("\n");
-              const boldHeader = header.replace(/:\s*$/, "");
-              return `**${boldHeader}**\n${rest.join("\n")}`;
-            });
-            searchOnlyWithFormattedResult = lines.length
-              ? `Here's what I found for **"${q}"**:\n\n${formattedSections.join("\n\n")}`
-              : `No results found for **"${q}"**.`;
+            if (useOracle) {
+              const [notes, workLogs, customers, plans, achievements] = await Promise.all([
+                oracleNotes.searchNotes(user.id, pattern, 5),
+                oracleWorkLogs.searchWorkLogs(user.id, pattern, 5),
+                oracleCustomers.searchCustomers(user.id, pattern, 5),
+                oraclePlans.searchDailyPlans(user.id, pattern, 5),
+                oracleAchievements.searchAchievements(user.id, pattern, 5),
+              ]);
+              const lines: string[] = [];
+              if (notes.length) lines.push(`Notes:\n${notes.map((n) => `- ${n.title}`).join("\n")}`);
+              if (workLogs.length) lines.push(`Work logs:\n${workLogs.map((w) => `- ${w.date}: ${w.summary.slice(0, 80)}`).join("\n")}`);
+              if (customers.length) lines.push(`Customers:\n${customers.map((c) => `- ${c.name}`).join("\n")}`);
+              if (plans.length) lines.push(`Plans: ${plans.length} matching entries found`);
+              if (achievements.length) lines.push(`Achievements:\n${achievements.map((a) => `- ${a.custom_title ?? ""} (${a.earned_at})`).join("\n")}`);
+              result = lines.length ? lines.join("\n\n") : "No results found.";
+              const formattedSections = lines.map((line) => {
+                const [header, ...rest] = line.split("\n");
+                const boldHeader = header.replace(/:\s*$/, "");
+                return `**${boldHeader}**\n${rest.join("\n")}`;
+              });
+              searchOnlyWithFormattedResult = lines.length
+                ? `Here's what I found for **"${q}"**:\n\n${formattedSections.join("\n\n")}`
+                : `No results found for **"${q}"**.`;
+            } else {
+              const [n1, n2, workRes, custRes, planRes, achRes] = await Promise.all([
+                supabase.from("notes").select("id, title").ilike("title", pattern).limit(5),
+                supabase.from("notes").select("id, title").ilike("body", pattern).limit(5),
+                supabase.from("work_logs").select("id, date, summary").ilike("summary", pattern).limit(5),
+                supabase.from("customers").select("id, name").ilike("name", pattern).limit(5),
+                supabase.from("daily_plans").select("id, date, content").ilike("content", pattern).limit(5),
+                supabase.from("achievements").select("id, custom_title, earned_at").ilike("custom_title", pattern).limit(5),
+              ]);
+              const notes = [...(n1.data ?? []), ...(n2.data ?? [])];
+              const uniqueNotes = Array.from(new Map(notes.map((n) => [n.id, n])).values());
+              const lines: string[] = [];
+              if (uniqueNotes.length) lines.push(`Notes:\n${uniqueNotes.map((n) => `- ${n.title}`).join("\n")}`);
+              if (workRes.data?.length) lines.push(`Work logs:\n${workRes.data.map((w) => `- ${w.date}: ${w.summary.slice(0, 80)}`).join("\n")}`);
+              if (custRes.data?.length) lines.push(`Customers:\n${custRes.data.map((c) => `- ${c.name}`).join("\n")}`);
+              if (planRes.data?.length) lines.push(`Plans: ${planRes.data.length} matching entries found`);
+              if (achRes.data?.length) lines.push(`Achievements:\n${achRes.data.map((a) => `- ${a.custom_title} (${a.earned_at})`).join("\n")}`);
+              result = lines.length ? lines.join("\n\n") : "No results found.";
+              const formattedSections = lines.map((line) => {
+                const [header, ...rest] = line.split("\n");
+                const boldHeader = header.replace(/:\s*$/, "");
+                return `**${boldHeader}**\n${rest.join("\n")}`;
+              });
+              searchOnlyWithFormattedResult = lines.length
+                ? `Here's what I found for **"${q}"**:\n\n${formattedSections.join("\n\n")}`
+                : `No results found for **"${q}"**.`;
+            }
           } else if (name === "list_notes") {
             const limit = Math.min(Math.max(1, Number(args.limit) || 50), 100);
-            const { data: notesData } = await supabase
-              .from("notes")
-              .select("id, title, body, updated_at")
-              .order("updated_at", { ascending: false })
-              .limit(limit);
-            const notes = notesData ?? [];
-            const lines: string[] = [];
-            if (notes.length) {
-              lines.push(`Notes:\n${notes.map((n) => `- ${n.title}${n.body ? ` — ${n.body.slice(0, 60)}${n.body.length > 60 ? "…" : ""}` : ""}`).join("\n")}`);
+            if (useOracle) {
+              const notes = await oracleNotes.getNotesByUser(user.id, { limit });
+              const lines: string[] = [];
+              if (notes.length) {
+                lines.push(`Notes:\n${notes.map((n) => `- ${n.title}${n.body ? ` — ${n.body.slice(0, 60)}${n.body.length > 60 ? "…" : ""}` : ""}`).join("\n")}`);
+              }
+              result = lines.length ? lines.join("\n\n") : "No notes found.";
+              const formattedSections = lines.map((line) => {
+                const [header, ...rest] = line.split("\n");
+                const boldHeader = header.replace(/:\s*$/, "");
+                return `**${boldHeader}**\n${rest.join("\n")}`;
+              });
+              searchOnlyWithFormattedResult = notes.length
+                ? `Here are your **${notes.length}** note(s):\n\n${formattedSections.join("\n\n")}`
+                : "You have no notes yet.";
+            } else {
+              const { data: notesData } = await supabase
+                .from("notes")
+                .select("id, title, body, updated_at")
+                .order("updated_at", { ascending: false })
+                .limit(limit);
+              const notes = notesData ?? [];
+              const lines: string[] = [];
+              if (notes.length) {
+                lines.push(`Notes:\n${notes.map((n) => `- ${n.title}${n.body ? ` — ${n.body.slice(0, 60)}${n.body.length > 60 ? "…" : ""}` : ""}`).join("\n")}`);
+              }
+              result = lines.length ? lines.join("\n\n") : "No notes found.";
+              const formattedSections = lines.map((line) => {
+                const [header, ...rest] = line.split("\n");
+                const boldHeader = header.replace(/:\s*$/, "");
+                return `**${boldHeader}**\n${rest.join("\n")}`;
+              });
+              searchOnlyWithFormattedResult = notes.length
+                ? `Here are your **${notes.length}** note(s):\n\n${formattedSections.join("\n\n")}`
+                : "You have no notes yet.";
             }
-            result = lines.length ? lines.join("\n\n") : "No notes found.";
-            const formattedSections = lines.map((line) => {
-              const [header, ...rest] = line.split("\n");
-              const boldHeader = header.replace(/:\s*$/, "");
-              return `**${boldHeader}**\n${rest.join("\n")}`;
-            });
-            searchOnlyWithFormattedResult = notes.length
-              ? `Here are your **${notes.length}** note(s):\n\n${formattedSections.join("\n\n")}`
-              : "You have no notes yet.";
           } else {
             result = `Unknown tool: ${name}`;
           }
@@ -250,25 +362,29 @@ export async function POST(request: Request) {
           result = `Error: ${e instanceof Error ? e.message : String(e)}`;
         }
 
-        functionResponses.push({ functionResponse: { name, response: { result } } });
+        toolResults.push({ role: "tool", content: result, tool_call_id: tc.id });
       }
 
-      const singleTool = functionCalls.length === 1 && functionCalls[0]?.name;
+      const singleTool = functionToolCalls.length === 1 && functionToolCalls[0]?.function?.name;
       if (searchOnlyWithFormattedResult !== null && singleTool && (singleTool === "search" || singleTool === "list_notes")) {
         const content = searchOnlyWithFormattedResult;
         logger.info("Chat succeeded (search shortcut)", { operation: "chat", userId: user.id, durationMs: Date.now() - start });
         return NextResponse.json({ content, role: "assistant" });
       }
 
-      contents.push({ role: "user", parts: functionResponses });
+      openaiMessages.push(...toolResults);
 
-      response = await genAI.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents,
-        config,
+      response = await ociGenAI.chat.completions.create({
+        model: OCI_DEFAULT_MODEL,
+        messages: openaiMessages,
+        tools: TOOL_DEFINITIONS,
+        tool_choice: "auto",
+        max_tokens: 512,
       });
-      functionCalls = response.functionCalls ?? [];
-      text = (response.text ?? "").trim();
+      choice = response.choices?.[0];
+      message = choice?.message;
+      toolCalls = message?.tool_calls ?? [];
+      text = (message?.content ?? "").trim();
     }
 
     const content = text || "Done.";

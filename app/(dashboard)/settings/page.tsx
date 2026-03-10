@@ -2,6 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { updateProfile, setUploadedAvatar } from "./actions";
 import ExportSection from "./ExportSection";
+import { useOracle } from "@/lib/db";
+import * as oracleProfiles from "@/lib/oracle/tables/profiles";
 
 export default async function SettingsPage({
   searchParams,
@@ -10,11 +12,9 @@ export default async function SettingsPage({
 }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("display_name, email, avatar_url")
-    .eq("id", user?.id ?? "")
-    .maybeSingle();
+  const profile = user
+    ? (useOracle ? await oracleProfiles.getProfile(user.id) : (await supabase.from("profiles").select("display_name, email, avatar_url").eq("id", user.id).maybeSingle()).data)
+    : null;
 
   const params = await searchParams;
 

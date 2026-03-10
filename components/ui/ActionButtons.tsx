@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { toUserMessage } from "@/lib/errors";
 
 type ActionButtonsProps = {
   onDelete: () => Promise<unknown>;
@@ -26,8 +27,7 @@ export function ActionButtons({
         await onDelete();
         router.refresh();
       } catch (err) {
-        const msg = err instanceof Error ? err.message : "Could not delete.";
-        alert(msg);
+        alert(toUserMessage(err));
       }
     });
   }

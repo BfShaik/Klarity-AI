@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { MessageCircle, X, Send } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import { toUserMessage } from "@/lib/errors";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
@@ -45,7 +46,7 @@ export function ChatBot() {
     } catch (e) {
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: `Error: ${e instanceof Error ? e.message : "Something went wrong"}` },
+        { role: "assistant", content: `Error: ${toUserMessage(e)}` },
       ]);
     } finally {
       setLoading(false);

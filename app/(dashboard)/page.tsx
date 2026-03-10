@@ -1,6 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import { useOracle } from "@/lib/db";
+import * as oracleAchievements from "@/lib/oracle/tables/achievements";
+import * as oracleGoals from "@/lib/oracle/tables/goals";
+import * as oracleNotes from "@/lib/oracle/tables/notes";
+import * as oracleWorkLogs from "@/lib/oracle/tables/work-logs";
 import {
   ClipboardList,
   StickyNote,
@@ -25,6 +31,21 @@ const GoalsProgressChart = dynamic(
   () => import("./components/DashboardCharts").then((m) => ({ default: m.GoalsProgressChart })),
   { ssr: true, loading: () => <div className="h-[180px] bg-white/5 animate-pulse rounded" /> }
 );
+
+async function getCountsOracle(userId: string) {
+  try {
+    const [achievements, goals, completedGoals, notes, workLogs] = await Promise.all([
+      oracleAchievements.countAchievements(userId),
+      oracleGoals.countGoals(userId, "active"),
+      oracleGoals.countGoals(userId, "completed"),
+      oracleNotes.countNotes(userId),
+      oracleWorkLogs.countWorkLogs(userId),
+    ]);
+    return { achievements, goals, completedGoals, notes, workLogs };
+  } catch {
+    return { achievements: 0, goals: 0, completedGoals: 0, notes: 0, workLogs: 0 };
+  }
+}
 
 async function getCounts(supabase: Awaited<ReturnType<typeof createClient>>) {
   try {
@@ -55,6 +76,34 @@ async function getCounts(supabase: Awaited<ReturnType<typeof createClient>>) {
 
 type Period = "week" | "month" | "all";
 
+async function getWorkLogChartDataOracle(userId: string, period: Period = "week") {
+  try {
+    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const today = new Date();
+    const startDate = new Date(today);
+    if (period === "week") startDate.setDate(startDate.getDate() - 6);
+    else if (period === "month") startDate.setDate(startDate.getDate() - 29);
+    else startDate.setDate(startDate.getDate() - 89);
+    const data = await oracleWorkLogs.getWorkLogDatesInRange(userId, startDate.toISOString().slice(0, 10), today.toISOString().slice(0, 10));
+    const dayCount = period === "week" ? 7 : period === "month" ? 30 : 90;
+    const byDay: Record<string, number> = {};
+    for (let i = 0; i < dayCount; i++) {
+      const d = new Date(startDate);
+      d.setDate(d.getDate() + i);
+      byDay[d.toISOString().slice(0, 10)] = 0;
+    }
+    data.forEach((r) => {
+      const key = r.log_date;
+      if (byDay[key] !== undefined) byDay[key]++;
+    });
+    return Object.entries(byDay)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, count]) => ({ day: dayNames[new Date(date).getDay()], count }));
+  } catch {
+    return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => ({ day, count: 0 }));
+  }
+}
+
 async function getWorkLogChartData(
   supabase: Awaited<ReturnType<typeof createClient>>,
   period: Period = "week"
@@ -63,21 +112,14 @@ async function getWorkLogChartData(
     const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     const today = new Date();
     const startDate = new Date(today);
-
-    if (period === "week") {
-      startDate.setDate(startDate.getDate() - 6);
-    } else if (period === "month") {
-      startDate.setDate(startDate.getDate() - 29);
-    } else {
-      startDate.setDate(startDate.getDate() - 89); // ~90 days for "all"
-    }
-
+    if (period === "week") startDate.setDate(startDate.getDate() - 6);
+    else if (period === "month") startDate.setDate(startDate.getDate() - 29);
+    else startDate.setDate(startDate.getDate() - 89);
     const { data } = await supabase
       .from("work_logs")
       .select("date")
       .gte("date", startDate.toISOString().slice(0, 10))
       .lte("date", today.toISOString().slice(0, 10));
-
     const dayCount = period === "week" ? 7 : period === "month" ? 30 : 90;
     const byDay: Record<string, number> = {};
     for (let i = 0; i < dayCount; i++) {
@@ -89,13 +131,9 @@ async function getWorkLogChartData(
       const key = (r as { date: string }).date;
       if (byDay[key] !== undefined) byDay[key]++;
     });
-
     return Object.entries(byDay)
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([date, count]) => ({
-        day: dayNames[new Date(date).getDay()],
-        count,
-      }));
+      .map(([date, count]) => ({ day: dayNames[new Date(date).getDay()], count }));
   } catch {
     return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => ({ day, count: 0 }));
   }
@@ -113,34 +151,39 @@ export default async function DashboardPage({
     params.period === "month" || params.period === "all" ? params.period : "week";
 
   const supabase = await createClient();
-  const [
-    counts,
-    workLogChartData,
-    upcomingGoals,
-    recentCompletions,
-    { data: { user } },
-  ] = await Promise.all([
-    getCounts(supabase),
-    getWorkLogChartData(supabase, period),
-    supabase
-      .from("goals")
-      .select("id, title, target_date")
-      .eq("status", "active")
-      .order("target_date", { ascending: true, nullsFirst: false })
-      .limit(5),
-    supabase
-      .from("goals")
-      .select("id, title, target_date, completed_at")
-      .eq("status", "completed")
-      .order("completed_at", { ascending: false })
-      .limit(5),
-    supabase.auth.getUser(),
-  ]);
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
-  const { data: profile } = user
-    ? await supabase.from("profiles").select("display_name").eq("id", user.id).maybeSingle()
-    : { data: null };
-  const greeting = profile?.display_name?.trim() || user?.email?.split("@")[0] || "there";
+  let counts: { achievements: number; goals: number; completedGoals: number; notes: number; workLogs: number };
+  let workLogChartData: { day: string; count: number }[];
+  let upcomingGoals: { id: string; title: string; target_date: string | null }[];
+  let recentCompletions: { id: string; title: string; target_date: string | null; completed_at: string | null }[];
+
+  if (useOracle) {
+    [counts, workLogChartData, upcomingGoals, recentCompletions] = await Promise.all([
+      getCountsOracle(user.id),
+      getWorkLogChartDataOracle(user.id, period),
+      oracleGoals.getUpcomingGoals(user.id, 5),
+      oracleGoals.getRecentCompletedGoals(user.id, 5),
+    ]);
+    recentCompletions = recentCompletions.map((g) => ({ ...g, target_date: null }));
+  } else {
+    const [countsRes, chartRes, upcomingRes, recentRes] = await Promise.all([
+      getCounts(supabase),
+      getWorkLogChartData(supabase, period),
+      supabase.from("goals").select("id, title, target_date").eq("status", "active").order("target_date", { ascending: true, nullsFirst: false }).limit(5),
+      supabase.from("goals").select("id, title, target_date, completed_at").eq("status", "completed").order("completed_at", { ascending: false }).limit(5),
+    ]);
+    counts = countsRes;
+    workLogChartData = chartRes;
+    upcomingGoals = upcomingRes.data ?? [];
+    recentCompletions = recentRes.data ?? [];
+  }
+
+  const profile = useOracle
+    ? await import("@/lib/oracle/tables/profiles").then((m) => m.getProfile(user.id))
+    : (await supabase.from("profiles").select("display_name").eq("id", user.id).maybeSingle()).data;
+  const greeting = (profile as { display_name?: string } | null)?.display_name?.trim() || user?.email?.split("@")[0] || "there";
 
   const stats = [
     { label: "Achievements", value: counts.achievements, href: "/achievements", icon: Trophy, color: "text-red-400" },
@@ -204,9 +247,9 @@ export default async function DashboardPage({
               View all
             </Link>
           </div>
-          {upcomingGoals.data && upcomingGoals.data.length > 0 ? (
+          {upcomingGoals && upcomingGoals.length > 0 ? (
             <ul className="space-y-2">
-              {upcomingGoals.data.map((g) => (
+              {upcomingGoals.map((g) => (
                 <li key={g.id}>
                   <Link
                     href="/goals"
@@ -231,9 +274,9 @@ export default async function DashboardPage({
               View all
             </Link>
           </div>
-          {recentCompletions.data && recentCompletions.data.length > 0 ? (
+          {recentCompletions && recentCompletions.length > 0 ? (
             <ul className="space-y-2">
-              {recentCompletions.data.map((g) => (
+              {recentCompletions.map((g) => (
                 <li key={g.id}>
                   <Link
                     href="/goals"

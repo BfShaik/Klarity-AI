@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
 import { toUserMessage, getErrorContextForLog } from "@/lib/errors";
-import { genAI } from "@/lib/gemini";
+import { ociGenAI, OCI_DEFAULT_MODEL } from "@/lib/oci-genai";
 
 export const dynamic = "force-dynamic";
 
@@ -21,8 +21,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "action is required" }, { status: 400 });
     }
 
-    if (!genAI) {
-      return NextResponse.json({ error: "AI not configured. Add GOOGLE_AI_API_KEY to .env.local" }, { status: 503 });
+    if (!ociGenAI) {
+      return NextResponse.json(
+        { error: "AI not configured. Add OCI_GENAI_API_KEY to .env.local. Create API key in OCI Console → Generative AI → API Keys." },
+        { status: 503 }
+      );
     }
 
     if (action === "refine") {
@@ -31,18 +34,24 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "text must be a string" }, { status: 400 });
       }
       try {
-        const response = await genAI.models.generateContent({
-          model: "gemini-3-flash-preview",
-          contents: `Improve this note for clarity, structure, and professionalism. Output only the improved text, no commentary.\n\n---\n\n${text}`,
+        const response = await ociGenAI.chat.completions.create({
+          model: OCI_DEFAULT_MODEL,
+          messages: [
+            {
+              role: "user",
+              content: `Improve this note for clarity, structure, and professionalism. Output only the improved text, no commentary.\n\n---\n\n${text}`,
+            },
+          ],
+          max_tokens: 2048,
         });
-        const suggested = (response?.text ?? "").trim();
+        const suggested = (response.choices?.[0]?.message?.content ?? "").trim();
         logger.info("AI API request succeeded", { operation: "ai", resource: "ai", durationMs: Date.now() - start });
         return NextResponse.json({ suggested: suggested || text });
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : String(err);
-        logger.error("Gemini refine failed", { error: getErrorContextForLog(err), message: errMsg });
+        logger.error("OCI GenAI refine failed", { error: getErrorContextForLog(err), message: errMsg });
         if (errMsg.includes("API key") || errMsg.includes("403") || errMsg.includes("401")) {
-          return NextResponse.json({ error: "Invalid or restricted API key. Check GOOGLE_AI_API_KEY." }, { status: 503 });
+          return NextResponse.json({ error: "Invalid or restricted API key. Check OCI_GENAI_API_KEY." }, { status: 503 });
         }
         if (errMsg.includes("429") || errMsg.includes("quota") || errMsg.includes("RESOURCE_EXHAUSTED")) {
           return NextResponse.json(
@@ -89,18 +98,19 @@ ${workLogsText}
 
 Provide a concise summary suitable for a manager review or 1:1.`;
       try {
-        const response = await genAI.models.generateContent({
-          model: "gemini-3-flash-preview",
-          contents: prompt,
+        const response = await ociGenAI.chat.completions.create({
+          model: OCI_DEFAULT_MODEL,
+          messages: [{ role: "user", content: prompt }],
+          max_tokens: 1024,
         });
-        const summary = (response?.text ?? "").trim();
+        const summary = (response.choices?.[0]?.message?.content ?? "").trim();
         logger.info("AI API request succeeded", { operation: "ai", resource: "ai", durationMs: Date.now() - start });
         return NextResponse.json({ summary });
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : String(err);
-        logger.error("Gemini summarize failed", { error: getErrorContextForLog(err), message: errMsg });
+        logger.error("OCI GenAI summarize failed", { error: getErrorContextForLog(err), message: errMsg });
         if (errMsg.includes("API key") || errMsg.includes("403") || errMsg.includes("401")) {
-          return NextResponse.json({ error: "Invalid or restricted API key. Check GOOGLE_AI_API_KEY." }, { status: 503 });
+          return NextResponse.json({ error: "Invalid or restricted API key. Check OCI_GENAI_API_KEY." }, { status: 503 });
         }
         if (errMsg.includes("429") || errMsg.includes("quota") || errMsg.includes("RESOURCE_EXHAUSTED")) {
           return NextResponse.json(

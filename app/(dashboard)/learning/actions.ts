@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { withCrudLogging } from "@/lib/crud-context";
 import { ensureProfile } from "@/lib/ensure-profile";
+import { useOracle } from "@/lib/db";
+import * as oracleLearning from "@/lib/oracle/tables/learning-progress";
 
 export async function createLearningItem(formData: FormData) {
   const supabase = await createClient();
@@ -19,14 +21,18 @@ export async function createLearningItem(formData: FormData) {
       if (!title || !source) throw new Error("Title and source are required.");
       const external_url = (formData.get("external_url") as string)?.trim() || null;
       const progress_percent = Math.min(100, Math.max(0, parseInt((formData.get("progress_percent") as string) || "0", 10)));
-      const { error } = await supabase.from("learning_progress").insert({
-        user_id: user.id,
-        title,
-        source,
-        external_url,
-        progress_percent,
-      });
-      if (error) throw error;
+      if (useOracle) {
+        await oracleLearning.insertLearningProgress(user.id, { lp_source: source, title, external_url, progress_percent });
+      } else {
+        const { error } = await supabase.from("learning_progress").insert({
+          user_id: user.id,
+          title,
+          source,
+          external_url,
+          progress_percent,
+        });
+        if (error) throw error;
+      }
       revalidatePath("/learning");
     }
   );
@@ -44,8 +50,12 @@ export async function updateLearningItem(id: string, formData: FormData) {
       if (!title || !source) throw new Error("Title and source are required.");
       const external_url = (formData.get("external_url") as string)?.trim() || null;
       const progress_percent = Math.min(100, Math.max(0, parseInt((formData.get("progress_percent") as string) || "0", 10)));
-      const { error } = await supabase.from("learning_progress").update({ title, source, external_url, progress_percent, updated_at: new Date().toISOString() }).eq("id", id).eq("user_id", user.id);
-      if (error) throw error;
+      if (useOracle) {
+        await oracleLearning.updateLearningProgress(id, user.id, { title, lp_source: source, external_url, progress_percent });
+      } else {
+        const { error } = await supabase.from("learning_progress").update({ title, source, external_url, progress_percent, updated_at: new Date().toISOString() }).eq("id", id).eq("user_id", user.id);
+        if (error) throw error;
+      }
       revalidatePath("/learning");
     }
   );
@@ -58,8 +68,12 @@ export async function deleteLearningItem(id: string) {
   return withCrudLogging(
     { operation: "deleteLearningItem", resource: "learning_progress", userId: user.id },
     async () => {
-      const { error } = await supabase.from("learning_progress").delete().eq("id", id).eq("user_id", user.id);
-      if (error) throw error;
+      if (useOracle) {
+        await oracleLearning.deleteLearningProgress(id, user.id);
+      } else {
+        const { error } = await supabase.from("learning_progress").delete().eq("id", id).eq("user_id", user.id);
+        if (error) throw error;
+      }
       revalidatePath("/learning");
     }
   );

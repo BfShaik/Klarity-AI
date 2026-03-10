@@ -1,8 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import WorkLogForm from "./WorkLogForm";
 import WorkLogTable from "./WorkLogTable";
 import WorkLogFilters from "./WorkLogFilters";
+import { useOracle } from "@/lib/db";
+import * as oracleWorkLogs from "@/lib/oracle/tables/work-logs";
+import * as oracleCustomers from "@/lib/oracle/tables/customers";
 
 type SearchParams = { from?: string; to?: string };
 
@@ -16,26 +20,38 @@ export default async function WorkLogPage({
   const to = params.to?.trim();
 
   const supabase = await createClient();
-  let query = supabase
-    .from("work_logs")
-    .select("id, date, summary, minutes, customer_id")
-    .order("date", { ascending: false })
-    .limit(100);
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
-  if (from && /^\d{4}-\d{2}-\d{2}$/.test(from)) {
-    query = query.gte("date", from);
-  }
-  if (to && /^\d{4}-\d{2}-\d{2}$/.test(to)) {
-    query = query.lte("date", to);
-  }
+  let entries: { id: string; date: string; summary: string; minutes: number | null; customer_id: string | null }[] = [];
+  let customers: { id: string; name: string }[] = [];
+  let entriesError: Error | null = null;
 
-  const [
-    { data: entries, error: entriesError },
-    { data: customers },
-  ] = await Promise.all([
-    query,
-    supabase.from("customers").select("id, name").order("name"),
-  ]);
+  if (useOracle) {
+    try {
+      [entries, customers] = await Promise.all([
+        oracleWorkLogs.getWorkLogsByUser(user.id, { from, to, order: "desc", limit: 100 }),
+        oracleCustomers.getCustomersByUser(user.id),
+      ]);
+    } catch (e) {
+      entriesError = e instanceof Error ? e : new Error(String(e));
+    }
+  } else {
+    let q = supabase
+      .from("work_logs")
+      .select("id, date, summary, minutes, customer_id")
+      .order("date", { ascending: false })
+      .limit(100);
+    if (from && /^\d{4}-\d{2}-\d{2}$/.test(from)) q = q.gte("date", from);
+    if (to && /^\d{4}-\d{2}-\d{2}$/.test(to)) q = q.lte("date", to);
+    const [entriesRes, customersRes] = await Promise.all([
+      q,
+      supabase.from("customers").select("id, name").order("name"),
+    ]);
+    entries = entriesRes.data ?? [];
+    customers = customersRes.data ?? [];
+    entriesError = entriesRes.error ? new Error(entriesRes.error.message) : null;
+  }
 
   if (entriesError) {
     return (

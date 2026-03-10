@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
 import { toUserMessage, getErrorContextForLog } from "@/lib/errors";
 import { ensureProfile } from "@/lib/ensure-profile";
+import { useOracle } from "@/lib/db";
+import * as oracleWorkLogs from "@/lib/oracle/tables/work-logs";
 
 export const dynamic = "force-dynamic";
 
@@ -29,17 +31,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "date and summary required" }, { status: 400 });
     }
 
-    // Validate date format (YYYY-MM-DD)
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       return NextResponse.json({ error: "Invalid date format. Use YYYY-MM-DD" }, { status: 400 });
     }
 
-    // Validate minutes if provided
     if (minutes != null && (typeof minutes !== "number" || minutes < 0)) {
       return NextResponse.json({ error: "minutes must be a non-negative number" }, { status: 400 });
     }
 
     const customerId = typeof customer_id === "string" && customer_id.trim() ? customer_id.trim() : null;
+
+    if (useOracle) {
+      const data = await oracleWorkLogs.insertWorkLog({
+        user_id: user.id,
+        date,
+        summary: summary.trim(),
+        minutes: minutes ?? null,
+        customer_id: customerId,
+      });
+      logger.info("Work log create succeeded", { operation: "createWorkLog", resource: "work_logs", userId, durationMs: Date.now() - start });
+      return NextResponse.json({ ok: true, data });
+    }
 
     const { error, data } = await supabase.from("work_logs").insert({
       user_id: user.id,
